@@ -115,6 +115,11 @@ class qgis2web_classDialogTest(unittest.TestCase):
                         'Extent',
                         (Qt.MatchExactly | Qt.MatchRecursive))[0],
                 1).setCurrentIndex(1)
+        self.dialog.paramsTreeOL.itemWidget(
+                self.dialog.paramsTreeOL.findItems(
+                        'Template',
+                        (Qt.MatchExactly | Qt.MatchRecursive))[0],
+                1).setCurrentIndex(1)
         self.dialog.leaflet.click()
 
         # Open the test file
@@ -147,6 +152,11 @@ class qgis2web_classDialogTest(unittest.TestCase):
                         'Extent',
                         (Qt.MatchExactly | Qt.MatchRecursive))[0],
                 1).setCurrentIndex(1)
+        self.dialog.paramsTreeOL.itemWidget(
+                self.dialog.paramsTreeOL.findItems(
+                        'Template',
+                        (Qt.MatchExactly | Qt.MatchRecursive))[0],
+                1).setCurrentIndex(1)
         self.dialog.leaflet.click()
 
         test_file = open(
@@ -173,6 +183,11 @@ class qgis2web_classDialogTest(unittest.TestCase):
         self.dialog.paramsTreeOL.itemWidget(
                 self.dialog.paramsTreeOL.findItems(
                         'Extent', (Qt.MatchExactly | Qt.MatchRecursive))[0],
+                1).setCurrentIndex(1)
+        self.dialog.paramsTreeOL.itemWidget(
+                self.dialog.paramsTreeOL.findItems(
+                        'Template',
+                        (Qt.MatchExactly | Qt.MatchRecursive))[0],
                 1).setCurrentIndex(1)
         self.dialog.leaflet.click()
 
@@ -203,6 +218,11 @@ class qgis2web_classDialogTest(unittest.TestCase):
                 self.dialog.paramsTreeOL.findItems(
                         'Extent', (Qt.MatchExactly | Qt.MatchRecursive))[0],
                 1).setCurrentIndex(1)
+        self.dialog.paramsTreeOL.itemWidget(
+                self.dialog.paramsTreeOL.findItems(
+                        'Template',
+                        (Qt.MatchExactly | Qt.MatchRecursive))[0],
+                1).setCurrentIndex(1)
         self.dialog.leaflet.click()
         test_file = open(
                 self.dialog.preview.url().toString().replace('file://', ''))
@@ -228,6 +248,11 @@ class qgis2web_classDialogTest(unittest.TestCase):
         self.dialog.paramsTreeOL.itemWidget(
                 self.dialog.paramsTreeOL.findItems(
                         'Extent', (Qt.MatchExactly | Qt.MatchRecursive))[0],
+                1).setCurrentIndex(1)
+        self.dialog.paramsTreeOL.itemWidget(
+                self.dialog.paramsTreeOL.findItems(
+                        'Template',
+                        (Qt.MatchExactly | Qt.MatchRecursive))[0],
                 1).setCurrentIndex(1)
         self.dialog.leaflet.click()
 
@@ -260,6 +285,11 @@ class qgis2web_classDialogTest(unittest.TestCase):
                 self.dialog.paramsTreeOL.findItems(
                         'Extent', (Qt.MatchExactly | Qt.MatchRecursive))[0],
                 1).setCurrentIndex(1)
+        self.dialog.paramsTreeOL.itemWidget(
+                self.dialog.paramsTreeOL.findItems(
+                        'Template',
+                        (Qt.MatchExactly | Qt.MatchRecursive))[0],
+                1).setCurrentIndex(1)
         self.dialog.leaflet.click()
 
         test_file = open(
@@ -289,6 +319,11 @@ class qgis2web_classDialogTest(unittest.TestCase):
                 self.dialog.paramsTreeOL.findItems(
                         'Extent', (Qt.MatchExactly | Qt.MatchRecursive))[0],
                 1).setCurrentIndex(1)
+        self.dialog.paramsTreeOL.itemWidget(
+                self.dialog.paramsTreeOL.findItems(
+                        'Template',
+                        (Qt.MatchExactly | Qt.MatchRecursive))[0],
+                1).setCurrentIndex(1)
         self.dialog.leaflet.click()
 
         test_file = open(self.dialog.preview.url().toString().replace("file://",""))
@@ -317,6 +352,11 @@ class qgis2web_classDialogTest(unittest.TestCase):
                 self.dialog.paramsTreeOL.findItems(
                         'Extent', (Qt.MatchExactly | Qt.MatchRecursive))[0],
                 1).setCurrentIndex(1)
+        self.dialog.paramsTreeOL.itemWidget(
+                self.dialog.paramsTreeOL.findItems(
+                        'Template',
+                        (Qt.MatchExactly | Qt.MatchRecursive))[0],
+                1).setCurrentIndex(1)
         self.dialog.leaflet.click()
         test_file = open(self.dialog.preview.url().toString().replace("file://",""))
         test_output = test_file.read()
@@ -342,6 +382,11 @@ class qgis2web_classDialogTest(unittest.TestCase):
         self.dialog.paramsTreeOL.itemWidget(
                 self.dialog.paramsTreeOL.findItems(
                         'Extent', (Qt.MatchExactly | Qt.MatchRecursive))[0],
+                1).setCurrentIndex(1)
+        self.dialog.paramsTreeOL.itemWidget(
+                self.dialog.paramsTreeOL.findItems(
+                        'Template',
+                        (Qt.MatchExactly | Qt.MatchRecursive))[0],
                 1).setCurrentIndex(1)
         self.dialog.leaflet.click()
         test_file = open(
@@ -372,6 +417,11 @@ class qgis2web_classDialogTest(unittest.TestCase):
                 self.dialog.paramsTreeOL.findItems(
                         'Extent', (Qt.MatchExactly | Qt.MatchRecursive))[0],
                 1).setCurrentIndex(1)
+        self.dialog.paramsTreeOL.itemWidget(
+                self.dialog.paramsTreeOL.findItems(
+                        'Template',
+                        (Qt.MatchExactly | Qt.MatchRecursive))[0],
+                1).setCurrentIndex(1)
         self.dialog.leaflet.click()
 
         test_file = open(
@@ -399,6 +449,11 @@ class qgis2web_classDialogTest(unittest.TestCase):
         self.dialog.paramsTreeOL.itemWidget(
                 self.dialog.paramsTreeOL.findItems(
                         'Extent', (Qt.MatchExactly | Qt.MatchRecursive))[0],
+                1).setCurrentIndex(1)
+        self.dialog.paramsTreeOL.itemWidget(
+                self.dialog.paramsTreeOL.findItems(
+                        'Template',
+                        (Qt.MatchExactly | Qt.MatchRecursive))[0],
                 1).setCurrentIndex(1)
         self.dialog.leaflet.click()
 
@@ -431,6 +486,11 @@ class qgis2web_classDialogTest(unittest.TestCase):
                 self.dialog.paramsTreeOL.findItems(
                         'Extent', (Qt.MatchExactly | Qt.MatchRecursive))[0],
                 1).setCurrentIndex(1)
+        self.dialog.paramsTreeOL.itemWidget(
+                self.dialog.paramsTreeOL.findItems(
+                        'Template',
+                        (Qt.MatchExactly | Qt.MatchRecursive))[0],
+                1).setCurrentIndex(1)
         self.dialog.leaflet.click()
         test_file = open(
                 self.dialog.preview.url().toString().replace('file://', ''))
@@ -457,6 +517,11 @@ class qgis2web_classDialogTest(unittest.TestCase):
         self.dialog.paramsTreeOL.itemWidget(
                 self.dialog.paramsTreeOL.findItems(
                         'Extent', (Qt.MatchExactly | Qt.MatchRecursive))[0],
+                1).setCurrentIndex(1)
+        self.dialog.paramsTreeOL.itemWidget(
+                self.dialog.paramsTreeOL.findItems(
+                        'Template',
+                        (Qt.MatchExactly | Qt.MatchRecursive))[0],
                 1).setCurrentIndex(1)
         self.dialog.leaflet.click()
 
@@ -488,6 +553,11 @@ class qgis2web_classDialogTest(unittest.TestCase):
                 self.dialog.paramsTreeOL.findItems(
                         'Extent', (Qt.MatchExactly | Qt.MatchRecursive))[0],
                 1).setCurrentIndex(1)
+        self.dialog.paramsTreeOL.itemWidget(
+                self.dialog.paramsTreeOL.findItems(
+                        'Template',
+                        (Qt.MatchExactly | Qt.MatchRecursive))[0],
+                1).setCurrentIndex(1)
         self.dialog.leaflet.click()
 
         test_file = open(
@@ -515,6 +585,11 @@ class qgis2web_classDialogTest(unittest.TestCase):
         self.dialog.paramsTreeOL.itemWidget(
                 self.dialog.paramsTreeOL.findItems(
                         'Extent', (Qt.MatchExactly | Qt.MatchRecursive))[0],
+                1).setCurrentIndex(1)
+        self.dialog.paramsTreeOL.itemWidget(
+                self.dialog.paramsTreeOL.findItems(
+                        'Template',
+                        (Qt.MatchExactly | Qt.MatchRecursive))[0],
                 1).setCurrentIndex(1)
         self.dialog.leaflet.click()
 
@@ -547,6 +622,11 @@ class qgis2web_classDialogTest(unittest.TestCase):
                 self.dialog.paramsTreeOL.findItems(
                         'Extent', (Qt.MatchExactly | Qt.MatchRecursive))[0],
                 1).setCurrentIndex(1)
+        self.dialog.paramsTreeOL.itemWidget(
+                self.dialog.paramsTreeOL.findItems(
+                        'Template',
+                        (Qt.MatchExactly | Qt.MatchRecursive))[0],
+                1).setCurrentIndex(1)
         self.dialog.leaflet.click()
 
         test_file = open(self.dialog.preview.url().toString().replace(
@@ -574,6 +654,11 @@ class qgis2web_classDialogTest(unittest.TestCase):
         self.dialog.paramsTreeOL.itemWidget(
                 self.dialog.paramsTreeOL.findItems(
                         'Extent', (Qt.MatchExactly | Qt.MatchRecursive))[0],
+                1).setCurrentIndex(1)
+        self.dialog.paramsTreeOL.itemWidget(
+                self.dialog.paramsTreeOL.findItems(
+                        'Template',
+                        (Qt.MatchExactly | Qt.MatchRecursive))[0],
                 1).setCurrentIndex(1)
         self.dialog.leaflet.click()
 
@@ -606,6 +691,11 @@ class qgis2web_classDialogTest(unittest.TestCase):
                 self.dialog.paramsTreeOL.findItems(
                         'Extent', (Qt.MatchExactly | Qt.MatchRecursive))[0],
                 1).setCurrentIndex(1)
+        self.dialog.paramsTreeOL.itemWidget(
+                self.dialog.paramsTreeOL.findItems(
+                        'Template',
+                        (Qt.MatchExactly | Qt.MatchRecursive))[0],
+                1).setCurrentIndex(1)
         self.dialog.leaflet.click()
 
         test_file = open(self.dialog.preview.url().toString().replace(
@@ -633,6 +723,11 @@ class qgis2web_classDialogTest(unittest.TestCase):
         self.dialog.paramsTreeOL.itemWidget(
                 self.dialog.paramsTreeOL.findItems(
                         'Extent', (Qt.MatchExactly | Qt.MatchRecursive))[0],
+                1).setCurrentIndex(1)
+        self.dialog.paramsTreeOL.itemWidget(
+                self.dialog.paramsTreeOL.findItems(
+                        'Template',
+                        (Qt.MatchExactly | Qt.MatchRecursive))[0],
                 1).setCurrentIndex(1)
         self.dialog.ol3.click()
 
@@ -669,6 +764,11 @@ class qgis2web_classDialogTest(unittest.TestCase):
                 self.dialog.paramsTreeOL.findItems(
                         'Extent', (Qt.MatchExactly | Qt.MatchRecursive))[0],
                 1).setCurrentIndex(1)
+        self.dialog.paramsTreeOL.itemWidget(
+                self.dialog.paramsTreeOL.findItems(
+                        'Template',
+                        (Qt.MatchExactly | Qt.MatchRecursive))[0],
+                1).setCurrentIndex(1)
         self.dialog.ol3.click()
 
         test_file = open(
@@ -703,6 +803,11 @@ class qgis2web_classDialogTest(unittest.TestCase):
         self.dialog.paramsTreeOL.itemWidget(self.dialog.paramsTreeOL.findItems("Extent",
                                                 (Qt.MatchExactly |
                                                  Qt.MatchRecursive))[0], 1).setCurrentIndex(1)
+        self.dialog.paramsTreeOL.itemWidget(
+                self.dialog.paramsTreeOL.findItems(
+                        'Template',
+                        (Qt.MatchExactly | Qt.MatchRecursive))[0],
+                1).setCurrentIndex(1)
         self.dialog.ol3.click()
 
         test_file = open(
@@ -738,6 +843,11 @@ class qgis2web_classDialogTest(unittest.TestCase):
                 self.dialog.paramsTreeOL.findItems(
                         "Extent", (Qt.MatchExactly | Qt.MatchRecursive))[0],
                 1).setCurrentIndex(1)
+        self.dialog.paramsTreeOL.itemWidget(
+                self.dialog.paramsTreeOL.findItems(
+                        'Template',
+                        (Qt.MatchExactly | Qt.MatchRecursive))[0],
+                1).setCurrentIndex(1)
         self.dialog.ol3.click()
 
         test_file = open(
@@ -772,6 +882,11 @@ class qgis2web_classDialogTest(unittest.TestCase):
         self.dialog.paramsTreeOL.itemWidget(self.dialog.paramsTreeOL.findItems("Extent",
                                                 (Qt.MatchExactly |
                                                  Qt.MatchRecursive))[0], 1).setCurrentIndex(1)
+        self.dialog.paramsTreeOL.itemWidget(
+                self.dialog.paramsTreeOL.findItems(
+                        'Template',
+                        (Qt.MatchExactly | Qt.MatchRecursive))[0],
+                1).setCurrentIndex(1)
         self.dialog.ol3.click()
 
         test_file = open(
@@ -806,6 +921,11 @@ class qgis2web_classDialogTest(unittest.TestCase):
         self.dialog.paramsTreeOL.itemWidget(self.dialog.paramsTreeOL.findItems("Extent",
                                                 (Qt.MatchExactly |
                                                  Qt.MatchRecursive))[0], 1).setCurrentIndex(1)
+        self.dialog.paramsTreeOL.itemWidget(
+                self.dialog.paramsTreeOL.findItems(
+                        'Template',
+                        (Qt.MatchExactly | Qt.MatchRecursive))[0],
+                1).setCurrentIndex(1)
         self.dialog.ol3.click()
 
         test_file = open(
@@ -840,6 +960,11 @@ class qgis2web_classDialogTest(unittest.TestCase):
         self.dialog.paramsTreeOL.itemWidget(self.dialog.paramsTreeOL.findItems("Extent",
                                                 (Qt.MatchExactly |
                                                  Qt.MatchRecursive))[0], 1).setCurrentIndex(1)
+        self.dialog.paramsTreeOL.itemWidget(
+                self.dialog.paramsTreeOL.findItems(
+                        'Template',
+                        (Qt.MatchExactly | Qt.MatchRecursive))[0],
+                1).setCurrentIndex(1)
         self.dialog.ol3.click()
 
         test_file = open(
@@ -874,6 +999,11 @@ class qgis2web_classDialogTest(unittest.TestCase):
         self.dialog.paramsTreeOL.itemWidget(self.dialog.paramsTreeOL.findItems("Extent",
                                                 (Qt.MatchExactly |
                                                  Qt.MatchRecursive))[0], 1).setCurrentIndex(1)
+        self.dialog.paramsTreeOL.itemWidget(
+                self.dialog.paramsTreeOL.findItems(
+                        'Template',
+                        (Qt.MatchExactly | Qt.MatchRecursive))[0],
+                1).setCurrentIndex(1)
         self.dialog.ol3.click()
 
         test_file = open(
@@ -908,6 +1038,11 @@ class qgis2web_classDialogTest(unittest.TestCase):
         self.dialog.paramsTreeOL.itemWidget(self.dialog.paramsTreeOL.findItems("Extent",
                                                 (Qt.MatchExactly |
                                                  Qt.MatchRecursive))[0], 1).setCurrentIndex(1)
+        self.dialog.paramsTreeOL.itemWidget(
+                self.dialog.paramsTreeOL.findItems(
+                        'Template',
+                        (Qt.MatchExactly | Qt.MatchRecursive))[0],
+                1).setCurrentIndex(1)
         self.dialog.ol3.click()
 
         test_file = open(
@@ -1035,7 +1170,12 @@ class qgis2web_classDialogTest(unittest.TestCase):
                 1).setCurrentIndex(1)
 
         # Check the 'Add scale bar' checkbox
-        self.dialog.items['Appearance'].get('Add scale bar').setCheckState(1, QtCore.Qt.Checked)
+        QgsProject.instance().writeEntryBool("ScaleBar", "/Enabled", True)
+        self.dialog.paramsTreeOL.itemWidget(
+                self.dialog.paramsTreeOL.findItems(
+                        'Template',
+                        (Qt.MatchExactly | Qt.MatchRecursive))[0],
+                1).setCurrentIndex(1)
         self.dialog.leaflet.click()
 
         # Open the test file
@@ -1070,10 +1210,18 @@ class qgis2web_classDialogTest(unittest.TestCase):
                         'Extent',
                         (Qt.MatchExactly | Qt.MatchRecursive))[0],
                 1).setCurrentIndex(1)
+        self.dialog.paramsTreeOL.itemWidget(
+                self.dialog.paramsTreeOL.findItems(
+                        'Template',
+                        (Qt.MatchExactly | Qt.MatchRecursive))[0],
+                1).setCurrentIndex(1)
 
         # Check the 'Add scale bar' checkbox
-        self.dialog.items['Appearance'].get('Add scale bar').setCheckState(1, QtCore.Qt.Checked)
+        QgsProject.instance().writeEntryBool("ScaleBar", "/Enabled", True)
         self.dialog.ol3.click()
+
+        # Reset scale bar setting
+        QgsProject.instance().writeEntryBool("ScaleBar", "/Enabled", False)
 
         # Open the test file
         test_output = read_output(self.dialog.preview.url().toString(), 'resources/qgis2web.js')
@@ -1111,6 +1259,11 @@ class qgis2web_classDialogTest(unittest.TestCase):
                         'Measure tool',
                         (Qt.MatchExactly | Qt.MatchRecursive))[0],
                 1).setCurrentIndex(1)
+        self.dialog.paramsTreeOL.itemWidget(
+                self.dialog.paramsTreeOL.findItems(
+                        'Template',
+                        (Qt.MatchExactly | Qt.MatchRecursive))[0],
+                1).setCurrentIndex(1)
         self.dialog.leaflet.click()
 
         # Open the test file
@@ -1137,6 +1290,11 @@ class qgis2web_classDialogTest(unittest.TestCase):
         self.dialog.paramsTreeOL.itemWidget(
                 self.dialog.paramsTreeOL.findItems(
                         'Extent',
+                        (Qt.MatchExactly | Qt.MatchRecursive))[0],
+                1).setCurrentIndex(1)
+        self.dialog.paramsTreeOL.itemWidget(
+                self.dialog.paramsTreeOL.findItems(
+                        'Template',
                         (Qt.MatchExactly | Qt.MatchRecursive))[0],
                 1).setCurrentIndex(1)
 
@@ -1197,6 +1355,11 @@ class qgis2web_classDialogTest(unittest.TestCase):
 
         # Check the 'Add address search' checkbox
         self.dialog.items['Appearance'].get('Add address search').setCheckState(1, QtCore.Qt.Checked)
+        self.dialog.paramsTreeOL.itemWidget(
+                self.dialog.paramsTreeOL.findItems(
+                        'Template',
+                        (Qt.MatchExactly | Qt.MatchRecursive))[0],
+                1).setCurrentIndex(1)
         self.dialog.leaflet.click()
 
         # Open the test file
@@ -1222,6 +1385,11 @@ class qgis2web_classDialogTest(unittest.TestCase):
         self.dialog.paramsTreeOL.itemWidget(
                 self.dialog.paramsTreeOL.findItems(
                         'Extent',
+                        (Qt.MatchExactly | Qt.MatchRecursive))[0],
+                1).setCurrentIndex(1)
+        self.dialog.paramsTreeOL.itemWidget(
+                self.dialog.paramsTreeOL.findItems(
+                        'Template',
                         (Qt.MatchExactly | Qt.MatchRecursive))[0],
                 1).setCurrentIndex(1)
 
@@ -1278,6 +1446,11 @@ class qgis2web_classDialogTest(unittest.TestCase):
 
         # Check the 'Geolocate user' checkbox
         self.dialog.items['Appearance'].get('Geolocate user').setCheckState(1, QtCore.Qt.Checked)
+        self.dialog.paramsTreeOL.itemWidget(
+                self.dialog.paramsTreeOL.findItems(
+                        'Template',
+                        (Qt.MatchExactly | Qt.MatchRecursive))[0],
+                1).setCurrentIndex(1)
         self.dialog.leaflet.click()
 
         # Open the test file
@@ -1303,6 +1476,11 @@ class qgis2web_classDialogTest(unittest.TestCase):
         self.dialog.paramsTreeOL.itemWidget(
                 self.dialog.paramsTreeOL.findItems(
                         'Extent',
+                        (Qt.MatchExactly | Qt.MatchRecursive))[0],
+                1).setCurrentIndex(1)
+        self.dialog.paramsTreeOL.itemWidget(
+                self.dialog.paramsTreeOL.findItems(
+                        'Template',
                         (Qt.MatchExactly | Qt.MatchRecursive))[0],
                 1).setCurrentIndex(1)
 
@@ -1348,6 +1526,11 @@ class qgis2web_classDialogTest(unittest.TestCase):
 
         # Check the 'Highlight on hover' checkbox
         self.dialog.items['Appearance'].get('Highlight on hover').setCheckState(1, QtCore.Qt.Checked)
+        self.dialog.paramsTreeOL.itemWidget(
+                self.dialog.paramsTreeOL.findItems(
+                        'Template',
+                        (Qt.MatchExactly | Qt.MatchRecursive))[0],
+                1).setCurrentIndex(1)
         self.dialog.leaflet.click()
 
         # Open the test file
@@ -1373,6 +1556,11 @@ class qgis2web_classDialogTest(unittest.TestCase):
         self.dialog.paramsTreeOL.itemWidget(
                 self.dialog.paramsTreeOL.findItems(
                         'Extent',
+                        (Qt.MatchExactly | Qt.MatchRecursive))[0],
+                1).setCurrentIndex(1)
+        self.dialog.paramsTreeOL.itemWidget(
+                self.dialog.paramsTreeOL.findItems(
+                        'Template',
                         (Qt.MatchExactly | Qt.MatchRecursive))[0],
                 1).setCurrentIndex(1)
 
@@ -1420,6 +1608,11 @@ class qgis2web_classDialogTest(unittest.TestCase):
 
         # Check the 'Match project CRS' checkbox
         self.dialog.items['Appearance'].get('Match project CRS').setCheckState(1, QtCore.Qt.Checked)
+        self.dialog.paramsTreeOL.itemWidget(
+                self.dialog.paramsTreeOL.findItems(
+                        'Template',
+                        (Qt.MatchExactly | Qt.MatchRecursive))[0],
+                1).setCurrentIndex(1)
         self.dialog.leaflet.click()
 
         # Open the test file
@@ -1448,6 +1641,11 @@ class qgis2web_classDialogTest(unittest.TestCase):
         self.dialog.paramsTreeOL.itemWidget(
                 self.dialog.paramsTreeOL.findItems(
                         'Extent',
+                        (Qt.MatchExactly | Qt.MatchRecursive))[0],
+                1).setCurrentIndex(1)
+        self.dialog.paramsTreeOL.itemWidget(
+                self.dialog.paramsTreeOL.findItems(
+                        'Template',
                         (Qt.MatchExactly | Qt.MatchRecursive))[0],
                 1).setCurrentIndex(1)
 
@@ -1505,6 +1703,11 @@ class qgis2web_classDialogTest(unittest.TestCase):
 
         # Check the 'Add layers list' checkbox
         self.dialog.items['Appearance'].get('Add layers list').setCheckState(1, QtCore.Qt.Checked)
+        self.dialog.paramsTreeOL.itemWidget(
+                self.dialog.paramsTreeOL.findItems(
+                        'Template',
+                        (Qt.MatchExactly | Qt.MatchRecursive))[0],
+                1).setCurrentIndex(1)
         self.dialog.leaflet.click()
 
         # Open the test file
@@ -1541,6 +1744,11 @@ class qgis2web_classDialogTest(unittest.TestCase):
 
         # Check the 'Visible' checkbox
         self.dialog.layers_item.child(0).visibleCheck.setChecked(False)
+        self.dialog.paramsTreeOL.itemWidget(
+                self.dialog.paramsTreeOL.findItems(
+                        'Template',
+                        (Qt.MatchExactly | Qt.MatchRecursive))[0],
+                1).setCurrentIndex(1)
         self.dialog.leaflet.click()
 
         # Open the test file
@@ -1566,6 +1774,11 @@ class qgis2web_classDialogTest(unittest.TestCase):
         self.dialog.paramsTreeOL.itemWidget(
                 self.dialog.paramsTreeOL.findItems(
                         'Extent',
+                        (Qt.MatchExactly | Qt.MatchRecursive))[0],
+                1).setCurrentIndex(1)
+        self.dialog.paramsTreeOL.itemWidget(
+                self.dialog.paramsTreeOL.findItems(
+                        'Template',
                         (Qt.MatchExactly | Qt.MatchRecursive))[0],
                 1).setCurrentIndex(1)
 
@@ -1610,6 +1823,11 @@ class qgis2web_classDialogTest(unittest.TestCase):
 
         # Check the 'Cluster' checkbox
         self.dialog.layers_item.child(0).clusterCheck.setChecked(True)
+        self.dialog.paramsTreeOL.itemWidget(
+                self.dialog.paramsTreeOL.findItems(
+                        'Template',
+                        (Qt.MatchExactly | Qt.MatchRecursive))[0],
+                1).setCurrentIndex(1)
         self.dialog.leaflet.click()
 
         # Open the test file
@@ -1637,6 +1855,11 @@ class qgis2web_classDialogTest(unittest.TestCase):
                         'Extent',
                         (Qt.MatchExactly | Qt.MatchRecursive))[0],
                 1).setCurrentIndex(1)
+        self.dialog.paramsTreeOL.itemWidget(
+                self.dialog.paramsTreeOL.findItems(
+                        'Template',
+                        (Qt.MatchExactly | Qt.MatchRecursive))[0],
+                1).setCurrentIndex(1)
 
         # Check the 'Cluster' checkbox
         self.dialog.layers_item.child(0).clusterCheck.setChecked(True)
@@ -1649,224 +1872,6 @@ class qgis2web_classDialogTest(unittest.TestCase):
 
         # Open the test file
         test_output = read_output(self.dialog.preview.url().toString(), 'layers/layers.js')
-
-        # Compare with control file
-        self.assertEqual(test_output, control_output, diff(control_output, test_output))
-
-    def test57_Leaflet_popup_all(self):
-        """Leaflet popup (all fields)"""
-        layer_path = test_data_path('layer', 'airports.shp')
-        style_path = test_data_path('style', 'airports_single.qml')
-        layer = load_layer(layer_path)
-        layer.loadNamedStyle(style_path)
-
-        registry = QgsMapLayerRegistry.instance()
-        registry.addMapLayer(layer)
-
-        control_file = open(
-                test_data_path(
-                        'control', 'leaflet_popup_all.html'), 'r')
-        control_output = control_file.read()
-
-
-        # Export to web map
-        self.dialog = MainDialog(IFACE)
-        self.dialog.paramsTreeOL.itemWidget(
-                self.dialog.paramsTreeOL.findItems(
-                        'Extent',
-                        (Qt.MatchExactly | Qt.MatchRecursive))[0],
-                1).setCurrentIndex(1)
-
-        # Select popup: all fields
-        self.dialog.layers_item.child(0).combo.setCurrentIndex(1)
-        self.dialog.leaflet.click()
-
-        # Open the test file
-        test_file = open(
-                self.dialog.preview.url().toString().replace('file://', ''))
-        test_output = test_file.read()
-
-        # Compare with control file
-        self.assertEqual(test_output, control_output, diff(control_output, test_output))
-
-    def test58_OL3_popup_all(self):
-        """OL3 popup (all fields)"""
-        layer_path = test_data_path('layer', 'airports.shp')
-        style_path = test_data_path('style', 'airports_single.qml')
-        layer = load_layer(layer_path)
-        layer.loadNamedStyle(style_path)
-
-        registry = QgsMapLayerRegistry.instance()
-        registry.addMapLayer(layer)
-
-        # Export to web map
-        self.dialog = MainDialog(IFACE)
-        self.dialog.paramsTreeOL.itemWidget(
-                self.dialog.paramsTreeOL.findItems(
-                        'Extent',
-                        (Qt.MatchExactly | Qt.MatchRecursive))[0],
-                1).setCurrentIndex(1)
-
-        # Select popup: all fields
-        self.dialog.layers_item.child(0).combo.setCurrentIndex(1)
-        self.dialog.ol3.click()
-
-        control_file = open(
-                test_data_path(
-                        'control', 'ol3_popup_all.js'), 'r')
-        control_output = control_file.read()
-
-        # Open the test file
-        test_output = read_output(self.dialog.preview.url().toString(), 'resources/qgis2web.js')
-
-        # Compare with control file
-        self.assertEqual(test_output, control_output, diff(control_output, test_output))
-
-    def test58_Leaflet_popup_single(self):
-        """Leaflet popup (single field)"""
-        layer_path = test_data_path('layer', 'airports.shp')
-        style_path = test_data_path('style', 'airports_single.qml')
-        layer = load_layer(layer_path)
-        layer.loadNamedStyle(style_path)
-
-        registry = QgsMapLayerRegistry.instance()
-        registry.addMapLayer(layer)
-
-        control_file = open(
-                test_data_path(
-                        'control', 'leaflet_popup_single.html'), 'r')
-        control_output = control_file.read()
-
-
-        # Export to web map
-        self.dialog = MainDialog(IFACE)
-        self.dialog.paramsTreeOL.itemWidget(
-                self.dialog.paramsTreeOL.findItems(
-                        'Extent',
-                        (Qt.MatchExactly | Qt.MatchRecursive))[0],
-                1).setCurrentIndex(1)
-
-        # Select popup: single field
-        self.dialog.layers_item.child(0).combo.setCurrentIndex(2)
-        self.dialog.leaflet.click()
-
-        # Open the test file
-        test_file = open(
-                self.dialog.preview.url().toString().replace('file://', ''))
-        test_output = test_file.read()
-
-        # Compare with control file
-        self.assertEqual(test_output, control_output, diff(control_output, test_output))
-
-    def test59_OL3_popup_single(self):
-        """OL3 popup (single field)"""
-        layer_path = test_data_path('layer', 'airports.shp')
-        style_path = test_data_path('style', 'airports_single.qml')
-        layer = load_layer(layer_path)
-        layer.loadNamedStyle(style_path)
-
-        registry = QgsMapLayerRegistry.instance()
-        registry.addMapLayer(layer)
-
-        # Export to web map
-        self.dialog = MainDialog(IFACE)
-        self.dialog.paramsTreeOL.itemWidget(
-                self.dialog.paramsTreeOL.findItems(
-                        'Extent',
-                        (Qt.MatchExactly | Qt.MatchRecursive))[0],
-                1).setCurrentIndex(1)
-
-        # Select popup: single field
-        self.dialog.layers_item.child(0).combo.setCurrentIndex(2)
-        self.dialog.ol3.click()
-
-        control_file = open(
-                test_data_path(
-                        'control', 'ol3_popup_single.js'), 'r')
-        control_output = control_file.read()
-
-        # Open the test file
-        test_output = read_output(self.dialog.preview.url().toString(), 'resources/qgis2web.js')
-
-        # Compare with control file
-        self.assertEqual(test_output, control_output, diff(control_output, test_output))
-
-    def test60_leaflet_deleteunused(self):
-        """Leaflet delete unused fields"""
-        layer_path = test_data_path('layer', 'airports.shp')
-        style_path = test_data_path('style', 'airports_single.qml')
-        layer = load_layer(layer_path)
-        layer.loadNamedStyle(style_path)
-
-        registry = QgsMapLayerRegistry.instance()
-        registry.addMapLayer(layer)
-
-        # Export to web map
-        self.dialog = MainDialog(IFACE)
-        self.dialog.paramsTreeOL.itemWidget(
-                self.dialog.paramsTreeOL.findItems(
-                        'Extent',
-                        (Qt.MatchExactly | Qt.MatchRecursive))[0],
-                1).setCurrentIndex(1)
-
-        # Select popup: single field
-        self.dialog.layers_item.child(0).combo.setCurrentIndex(2)
-
-        # Check the 'Delete unused fields' checkbox
-        self.dialog.items['Data export'].get('Delete unused fields').setCheckState(1, QtCore.Qt.Checked)
-        self.dialog.leaflet.click()
-
-        # Set 'Precision' combo to '6'
-        self.dialog.items['Data export'].get('Precision').combo.setCurrentIndex(6)
-        self.dialog.leaflet.click()
-
-        control_file = open(
-                test_data_path(
-                        'control', 'leaflet_deleteunused.js'), 'r')
-        control_output = control_file.read()
-
-        # Open the test file
-        test_output = read_output(self.dialog.preview.url().toString(), 'data/json_airports0.js')
-
-        # Compare with control file
-        self.assertEqual(test_output, control_output, diff(control_output, test_output))
-
-    def test61_ol3_deleteunused(self):
-        """OL3 delete unused fields"""
-        layer_path = test_data_path('layer', 'airports.shp')
-        style_path = test_data_path('style', 'airports_single.qml')
-        layer = load_layer(layer_path)
-        layer.loadNamedStyle(style_path)
-
-        registry = QgsMapLayerRegistry.instance()
-        registry.addMapLayer(layer)
-
-        # Export to web map
-        self.dialog = MainDialog(IFACE)
-        self.dialog.paramsTreeOL.itemWidget(
-                self.dialog.paramsTreeOL.findItems(
-                        'Extent',
-                        (Qt.MatchExactly | Qt.MatchRecursive))[0],
-                1).setCurrentIndex(1)
-
-        # Select popup: single field
-        self.dialog.layers_item.child(0).combo.setCurrentIndex(2)
-
-        # Check the 'Delete unused fields' checkbox
-        self.dialog.items['Data export'].get('Delete unused fields').setCheckState(1, QtCore.Qt.Checked)
-        self.dialog.ol3.click()
-
-        # Set 'Precision' combo to '2'
-        self.dialog.items['Data export'].get('Precision').combo.setCurrentIndex(2)
-        self.dialog.ol3.click()
-
-        control_file = open(
-                test_data_path(
-                        'control', 'ol3_deleteunused.js'), 'r')
-        control_output = control_file.read()
-
-        # Open the test file
-        test_output = read_output(self.dialog.preview.url().toString(), 'layers/airports.js')
 
         # Compare with control file
         self.assertEqual(test_output, control_output, diff(control_output, test_output))
@@ -1891,6 +1896,11 @@ class qgis2web_classDialogTest(unittest.TestCase):
 
         # Set 'Precision' combo to '3'
         self.dialog.items['Data export'].get('Precision').combo.setCurrentIndex(3)
+        self.dialog.paramsTreeOL.itemWidget(
+                self.dialog.paramsTreeOL.findItems(
+                        'Template',
+                        (Qt.MatchExactly | Qt.MatchRecursive))[0],
+                1).setCurrentIndex(1)
         self.dialog.leaflet.click()
 
         control_file = open(
@@ -1919,6 +1929,11 @@ class qgis2web_classDialogTest(unittest.TestCase):
         self.dialog.paramsTreeOL.itemWidget(
                 self.dialog.paramsTreeOL.findItems(
                         'Extent',
+                        (Qt.MatchExactly | Qt.MatchRecursive))[0],
+                1).setCurrentIndex(1)
+        self.dialog.paramsTreeOL.itemWidget(
+                self.dialog.paramsTreeOL.findItems(
+                        'Template',
                         (Qt.MatchExactly | Qt.MatchRecursive))[0],
                 1).setCurrentIndex(1)
 
@@ -1960,6 +1975,11 @@ class qgis2web_classDialogTest(unittest.TestCase):
                         'Extent',
                         (Qt.MatchExactly | Qt.MatchRecursive))[0],
                 1).setCurrentIndex(1)
+        self.dialog.paramsTreeOL.itemWidget(
+                self.dialog.paramsTreeOL.findItems(
+                        'Template',
+                        (Qt.MatchExactly | Qt.MatchRecursive))[0],
+                1).setCurrentIndex(1)
 
         # Set 'Mapping library location' combo to 'CDN'
         self.dialog.items['Data export'].get('Mapping library location').combo.setCurrentIndex(1)
@@ -1994,6 +2014,11 @@ class qgis2web_classDialogTest(unittest.TestCase):
         self.dialog.paramsTreeOL.itemWidget(
                 self.dialog.paramsTreeOL.findItems(
                         'Extent',
+                        (Qt.MatchExactly | Qt.MatchRecursive))[0],
+                1).setCurrentIndex(1)
+        self.dialog.paramsTreeOL.itemWidget(
+                self.dialog.paramsTreeOL.findItems(
+                        'Template',
                         (Qt.MatchExactly | Qt.MatchRecursive))[0],
                 1).setCurrentIndex(1)
 
@@ -2032,6 +2057,11 @@ class qgis2web_classDialogTest(unittest.TestCase):
 
         # Set 'Precision' combo to '6'
         self.dialog.items['Data export'].get('Precision').combo.setCurrentIndex(6)
+        self.dialog.paramsTreeOL.itemWidget(
+                self.dialog.paramsTreeOL.findItems(
+                        'Template',
+                        (Qt.MatchExactly | Qt.MatchRecursive))[0],
+                1).setCurrentIndex(1)
         self.dialog.leaflet.click()
 
         control_file = open(
@@ -2060,6 +2090,11 @@ class qgis2web_classDialogTest(unittest.TestCase):
         self.dialog.paramsTreeOL.itemWidget(
                 self.dialog.paramsTreeOL.findItems(
                         'Extent',
+                        (Qt.MatchExactly | Qt.MatchRecursive))[0],
+                1).setCurrentIndex(1)
+        self.dialog.paramsTreeOL.itemWidget(
+                self.dialog.paramsTreeOL.findItems(
+                        'Template',
                         (Qt.MatchExactly | Qt.MatchRecursive))[0],
                 1).setCurrentIndex(1)
 
@@ -2099,6 +2134,11 @@ class qgis2web_classDialogTest(unittest.TestCase):
                         (Qt.MatchExactly | Qt.MatchRecursive))[0],
                 1).setCurrentIndex(0)
 
+        self.dialog.paramsTreeOL.itemWidget(
+                self.dialog.paramsTreeOL.findItems(
+                        'Template',
+                        (Qt.MatchExactly | Qt.MatchRecursive))[0],
+                1).setCurrentIndex(1)
         self.dialog.leaflet.click()
 
         # Open the test file
@@ -2129,6 +2169,11 @@ class qgis2web_classDialogTest(unittest.TestCase):
 
         # Set 'Max zoom' combo to '20'
         self.dialog.items['Scale/Zoom'].get('Max zoom level').combo.setCurrentIndex(19)
+        self.dialog.paramsTreeOL.itemWidget(
+                self.dialog.paramsTreeOL.findItems(
+                        'Template',
+                        (Qt.MatchExactly | Qt.MatchRecursive))[0],
+                1).setCurrentIndex(1)
         self.dialog.leaflet.click()
 
         control_file = open(
@@ -2159,6 +2204,11 @@ class qgis2web_classDialogTest(unittest.TestCase):
         self.dialog.paramsTreeOL.itemWidget(
                 self.dialog.paramsTreeOL.findItems(
                         'Extent',
+                        (Qt.MatchExactly | Qt.MatchRecursive))[0],
+                1).setCurrentIndex(1)
+        self.dialog.paramsTreeOL.itemWidget(
+                self.dialog.paramsTreeOL.findItems(
+                        'Template',
                         (Qt.MatchExactly | Qt.MatchRecursive))[0],
                 1).setCurrentIndex(1)
 
@@ -2197,6 +2247,11 @@ class qgis2web_classDialogTest(unittest.TestCase):
 
         # Set 'Min zoom' combo to '6'
         self.dialog.items['Scale/Zoom'].get('Min zoom level').combo.setCurrentIndex(5)
+        self.dialog.paramsTreeOL.itemWidget(
+                self.dialog.paramsTreeOL.findItems(
+                        'Template',
+                        (Qt.MatchExactly | Qt.MatchRecursive))[0],
+                1).setCurrentIndex(1)
         self.dialog.leaflet.click()
 
         control_file = open(
@@ -2227,6 +2282,11 @@ class qgis2web_classDialogTest(unittest.TestCase):
         self.dialog.paramsTreeOL.itemWidget(
                 self.dialog.paramsTreeOL.findItems(
                         'Extent',
+                        (Qt.MatchExactly | Qt.MatchRecursive))[0],
+                1).setCurrentIndex(1)
+        self.dialog.paramsTreeOL.itemWidget(
+                self.dialog.paramsTreeOL.findItems(
+                        'Template',
                         (Qt.MatchExactly | Qt.MatchRecursive))[0],
                 1).setCurrentIndex(1)
 
@@ -2265,6 +2325,11 @@ class qgis2web_classDialogTest(unittest.TestCase):
 
         # Check the 'Restrict to extent' checkbox
         self.dialog.items['Scale/Zoom'].get('Restrict to extent').setCheckState(1, QtCore.Qt.Checked)
+        self.dialog.paramsTreeOL.itemWidget(
+                self.dialog.paramsTreeOL.findItems(
+                        'Template',
+                        (Qt.MatchExactly | Qt.MatchRecursive))[0],
+                1).setCurrentIndex(1)
         self.dialog.leaflet.click()
 
         control_file = open(
@@ -2297,6 +2362,11 @@ class qgis2web_classDialogTest(unittest.TestCase):
                         'Extent',
                         (Qt.MatchExactly | Qt.MatchRecursive))[0],
                 1).setCurrentIndex(1)
+        self.dialog.paramsTreeOL.itemWidget(
+                self.dialog.paramsTreeOL.findItems(
+                        'Template',
+                        (Qt.MatchExactly | Qt.MatchRecursive))[0],
+                1).setCurrentIndex(1)
 
         # Check the 'Restrict to extent' checkbox
         self.dialog.items['Scale/Zoom'].get('Restrict to extent').setCheckState(1, QtCore.Qt.Checked)
@@ -2325,6 +2395,11 @@ class qgis2web_classDialogTest(unittest.TestCase):
             self.dialog.paramsTreeOL.itemWidget(
                     self.dialog.paramsTreeOL.findItems(
                             'Extent',
+                            (Qt.MatchExactly | Qt.MatchRecursive))[0],
+                    1).setCurrentIndex(1)
+            self.dialog.paramsTreeOL.itemWidget(
+                    self.dialog.paramsTreeOL.findItems(
+                            'Template',
                             (Qt.MatchExactly | Qt.MatchRecursive))[0],
                     1).setCurrentIndex(1)
 
@@ -2363,6 +2438,11 @@ class qgis2web_classDialogTest(unittest.TestCase):
                             'Extent',
                             (Qt.MatchExactly | Qt.MatchRecursive))[0],
                     1).setCurrentIndex(1)
+            self.dialog.paramsTreeOL.itemWidget(
+                    self.dialog.paramsTreeOL.findItems(
+                            'Template',
+                            (Qt.MatchExactly | Qt.MatchRecursive))[0],
+                    1).setCurrentIndex(1)
 
             self.dialog.ol3.click()
 
@@ -2380,6 +2460,86 @@ class qgis2web_classDialogTest(unittest.TestCase):
             self.assertEqual(test_output, control_output, diff(control_output, test_output))
         else:
             print "skip"
+
+    def test78_Leaflet_raster(self):
+        """Leaflet raster"""
+        layer_path = test_data_path('layer', 'test.png')
+        # style_path = test_data_path('style', '25d.qml')
+        layer = load_layer(layer_path)
+        # layer.loadNamedStyle(style_path)
+
+        registry = QgsMapLayerRegistry.instance()
+        registry.addMapLayer(layer)
+
+        # Export to web map
+        self.dialog = MainDialog(IFACE)
+        self.dialog.paramsTreeOL.itemWidget(
+                self.dialog.paramsTreeOL.findItems(
+                        'Extent',
+                        (Qt.MatchExactly | Qt.MatchRecursive))[0],
+                1).setCurrentIndex(1)
+        self.dialog.paramsTreeOL.itemWidget(
+                self.dialog.paramsTreeOL.findItems(
+                        'Template',
+                        (Qt.MatchExactly | Qt.MatchRecursive))[0],
+                1).setCurrentIndex(1)
+
+        self.dialog.leaflet.click()
+
+        control_file = open(
+                test_data_path(
+                        'control', 'leaflet_raster.html'), 'r')
+        control_output = control_file.read()
+
+        # Open the test file
+        test_file = open(
+                self.dialog.preview.url().toString().replace('file://', ''))
+        test_output = test_file.read()
+
+        # Test for expected output
+        self.assertEqual(test_output, control_output, diff(control_output, test_output))
+        
+        # test for exported raster file
+        assert os.path.exists(self.dialog.preview.url().toString().replace('file://', '').replace('index.html', 'data/json_test0.png'))
+
+    def test79_OL3_raster(self):
+        """OL3 raster"""
+        layer_path = test_data_path('layer', 'test.png')
+        # style_path = test_data_path('style', '25d.qml')
+        layer = load_layer(layer_path)
+        # layer.loadNamedStyle(style_path)
+
+        registry = QgsMapLayerRegistry.instance()
+        registry.addMapLayer(layer)
+
+        # Export to web map
+        self.dialog = MainDialog(IFACE)
+        self.dialog.paramsTreeOL.itemWidget(
+                self.dialog.paramsTreeOL.findItems(
+                        'Extent',
+                        (Qt.MatchExactly | Qt.MatchRecursive))[0],
+                1).setCurrentIndex(1)
+        self.dialog.paramsTreeOL.itemWidget(
+                self.dialog.paramsTreeOL.findItems(
+                        'Template',
+                        (Qt.MatchExactly | Qt.MatchRecursive))[0],
+                1).setCurrentIndex(1)
+
+        self.dialog.ol3.click()
+
+        control_file = open(
+                test_data_path(
+                        'control', 'ol3_raster.js'), 'r')
+        control_output = control_file.read()
+
+        # Open the test file
+        test_output = read_output(self.dialog.preview.url().toString(), 'layers/layers.js')
+
+        # Test for expected output
+        self.assertEqual(test_output, control_output, diff(control_output, test_output))
+
+        # test for exported raster file
+        assert os.path.exists(self.dialog.preview.url().toString().replace('file://', '').replace('index.html', 'layers/test.png'))
 
     def test99_export_folder(self):
         """Export folder"""
@@ -2402,6 +2562,11 @@ class qgis2web_classDialogTest(unittest.TestCase):
         self.dialog.paramsTreeOL.itemWidget(
                 self.dialog.paramsTreeOL.findItems(
                         'Extent',
+                        (Qt.MatchExactly | Qt.MatchRecursive))[0],
+                1).setCurrentIndex(1)
+        self.dialog.paramsTreeOL.itemWidget(
+                self.dialog.paramsTreeOL.findItems(
+                        'Template',
                         (Qt.MatchExactly | Qt.MatchRecursive))[0],
                 1).setCurrentIndex(1)
 

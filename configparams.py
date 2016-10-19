@@ -36,8 +36,8 @@ paramsOL = {
     "Appearance": {
         "Add layers list": False,
         "Match project CRS": False,
-        "Add scale bar": False,
         "Add address search": False,
+        "Layer search": ("None", "placeholder"),
         "Measure tool": ("None", "Metric", "Imperial"),
         "Show popups on hover": False,
         "Highlight on hover": False,
@@ -49,7 +49,6 @@ paramsOL = {
         "Precision": ("maintain", "1", "2", "3", "4", "5", "6", "7", "8",
                       "9", "10", "11", "12", "13", "14", "15"),
         "Minify GeoJSON files": True,
-        "Delete unused fields": True,
         "Mapping library location": ("Local", "CDN")
     },
     "Scale/Zoom": {
@@ -79,8 +78,6 @@ baselayers = (
             "OpenMapSurfer Roads",
             "OpenMapSurfer adminb",
             "OpenMapSurfer roadsg",
-            "MapQuest OSM",
-            "MapQuest Aerial",
             "Stamen Terrain",
             "Stamen Watercolor",
             "OpenWeatherMap Clouds",

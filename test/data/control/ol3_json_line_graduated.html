@@ -16,7 +16,6 @@
         </style>
         <script src="resources/polyfills.js"></script>
         <script src="./resources/ol.js"></script>
-        <script src="resources/OSMBuildings-OL3.js"></script>
         <script src="./resources/ol3-layerswitcher.js"></script>
         <script src="layers/pipelines.js"></script>
         <script src="styles/pipelines_style.js"></script>
@@ -77,7 +76,7 @@ var style_pipelines = function(feature, resolution){
 
     if (!styleCache_pipelines[key]){
         var text = new ol.style.Text({
-              font: '10.725px Calibri,sans-serif',
+              font: '10.725px \'MS Shell Dlg 2\', sans-serif',
               text: labelText,
               textBaseline: "center",
               textAlign: "left",

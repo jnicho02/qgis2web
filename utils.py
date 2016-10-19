@@ -16,13 +16,13 @@
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
 import os
-import re
 import time
-from PyQt4.QtCore import *
+import re
+import shutil
+from PyQt4.QtCore import QDir, QVariant
 from qgis.core import *
+from qgis.utils import QGis
 import processing
-from subprocess import *
-import traceback
 import tempfile
 
 NO_POPUP = 0
@@ -64,21 +64,43 @@ def getUsedFields(layer):
 
 
 def writeTmpLayer(layer, popup):
-    if popup != ALL_ATTRIBUTES:
-        usedFields = getUsedFields(layer)
-        if popup != NO_POPUP:
-            usedFields.append(popup)
-    else:
-        usedFields = []
-        for count, field in enumerate(layer.pendingFields()):
+    fields = layer.pendingFields()
+    usedFields = []
+    for count, field in enumerate(fields):
+        fieldIndex = fields.indexFromName(unicode(field.name()))
+        try:
+            editorWidget = layer.editFormConfig().widgetType(fieldIndex)
+        except:
+            editorWidget = layer.editorWidgetV2(fieldIndex)
+        addField = False
+        try:
+            if layer.rendererV2().classAttribute() == field.name():
+                addField = True
+        except:
+            pass
+        if layer.customProperty("labeling/fieldName") == field.name():
+            addField = True
+        if (editorWidget != QgsVectorLayer.Hidden and
+                editorWidget != 'Hidden'):
+            addField = True
+        if addField:
             usedFields.append(count)
     uri = TYPE_MAP[layer.wkbType()]
     crs = layer.crs()
     if crs.isValid():
         uri += '?crs=' + crs.authid()
     for field in usedFields:
+        fieldIndex = layer.pendingFields().indexFromName(unicode(
+            layer.pendingFields().field(field).name()))
+        try:
+            editorWidget = layer.editFormConfig().widgetType(fieldIndex)
+        except:
+            editorWidget = layer.editorWidgetV2(fieldIndex)
         fieldType = layer.pendingFields().field(field).type()
         fieldName = layer.pendingFields().field(field).name()
+        if (editorWidget == QgsVectorLayer.Hidden or
+                editorWidget == 'Hidden'):
+            fieldName = "q2wHide_" + fieldName
         fieldType = "double" if (fieldType == QVariant.Double or
                                  fieldType == QVariant.Int) else (
                                     "string")
@@ -87,7 +109,8 @@ def writeTmpLayer(layer, popup):
     writer = newlayer.dataProvider()
     outFeat = QgsFeature()
     for feature in layer.getFeatures():
-        outFeat.setGeometry(feature.geometry())
+        if feature.geometry() is not None:
+            outFeat.setGeometry(feature.geometry())
         attrs = [feature[f] for f in usedFields]
         if attrs:
             outFeat.setAttributes(attrs)
@@ -97,7 +120,6 @@ def writeTmpLayer(layer, popup):
 
 def exportLayers(iface, layers, folder, precision, optimize, popupField, json):
     canvas = iface.mapCanvas()
-    srcCrs = canvas.mapSettings().destinationCrs()
     epsg4326 = QgsCoordinateReferenceSystem("EPSG:4326")
     layersFolder = os.path.join(folder, "layers")
     QDir().mkpath(layersFolder)
@@ -105,6 +127,9 @@ def exportLayers(iface, layers, folder, precision, optimize, popupField, json):
         if (layer.type() == layer.VectorLayer and
                 (layer.providerType() != "WFS" or encode2json)):
             cleanLayer = writeTmpLayer(layer, popup)
+            fields = layer.pendingFields()
+            for field in fields:
+                exportImages(layer, field.name(), layersFolder + "/tmp.tmp")
             if is25d(layer, canvas):
                 provider = cleanLayer.dataProvider()
                 provider.addAttributes([QgsField("height", QVariant.Double),
@@ -180,29 +205,154 @@ def exportLayers(iface, layers, folder, precision, optimize, popupField, json):
                             line = removeSpaces(line)
                         f.write(line)
             os.remove(tmpPath)
-        elif layer.type() == layer.RasterLayer:
-            name_ts = safeName(layer.name()) + unicode(time.time())
-            in_raster = unicode(layer.dataProvider().dataSourceUri())
-            prov_raster = os.path.join(tempfile.gettempdir(),
-                                       'json_' + name_ts + '_prov.tif')
-            out_raster = os.path.join(layersFolder,
-                                      safeName(layer.name()) + ".png")
+
+        elif (layer.type() == layer.RasterLayer and
+                layer.providerType() != "wms"):
+
+            name_ts = safeName(layer.name()) + unicode(int(time.time()))
+
+            # We need to create a new file to export style
+            piped_file = os.path.join(
+                tempfile.gettempdir(),
+                name_ts + '_piped.tif'
+            )
+
+            piped_extent = layer.extent()
+            piped_width = layer.height()
+            piped_height = layer.width()
+            piped_crs = layer.crs()
+            piped_renderer = layer.renderer()
+            piped_provider = layer.dataProvider()
+
+            pipe = QgsRasterPipe()
+            pipe.set(piped_provider.clone())
+            pipe.set(piped_renderer.clone())
+
+            file_writer = QgsRasterFileWriter(piped_file)
+
+            file_writer.writeRaster(pipe,
+                                    piped_width,
+                                    piped_height,
+                                    piped_extent,
+                                    piped_crs)
+
+            # Extent of the layer in EPSG:3857
             crsSrc = layer.crs()
             crsDest = QgsCoordinateReferenceSystem(3857)
             xform = QgsCoordinateTransform(crsSrc, crsDest)
             extentRep = xform.transform(layer.extent())
+
             extentRepNew = ','.join([unicode(extentRep.xMinimum()),
                                      unicode(extentRep.xMaximum()),
                                      unicode(extentRep.yMinimum()),
                                      unicode(extentRep.yMaximum())])
-            processing.runalg("gdalogr:warpreproject", in_raster,
-                              layer.crs().authid(), "EPSG:3857", "", 0, 1,
-                              0, -1, 75, 6, 1, False, 0, False, "",
-                              prov_raster)
-            processing.runalg("gdalogr:translate", prov_raster, 100,
-                              True, "", 0, "", extentRepNew, False, 0,
-                              0, 75, 6, 1, False, 0, False, "",
-                              out_raster)
+
+            # Reproject in 3857
+            piped_3857 = os.path.join(tempfile.gettempdir(),
+                                      name_ts + '_piped_3857.tif')
+            # Export layer as PNG
+            out_raster = os.path.join(layersFolder, layer.name() + ".png")
+
+            qgis_version = QGis.QGIS_VERSION
+
+            if int(qgis_version.split('.')[1]) < 15:
+                processing.runalg("gdalogr:warpreproject", piped_file,
+                                  layer.crs().authid(), "EPSG:3857", "", 0, 1,
+                                  0, -1, 75, 6, 1, False, 0, False, "",
+                                  piped_3857)
+                processing.runalg("gdalogr:translate", piped_3857, 100,
+                                  True, "", 0, "", extentRepNew, False, 0,
+                                  0, 75, 6, 1, False, 0, False, "",
+                                  out_raster)
+            else:
+                try:
+                    warpArgs = {
+                        "INPUT": piped_file,
+                        "SOURCE_SRS": layer.crs().authid(),
+                        "DEST_SRS": "EPSG:3857",
+                        "NO_DATA": "",
+                        "TR": 0,
+                        "METHOD": 2,
+                        "RAST_EXT": extentRepNew,
+                        "EXT_CRS": "EPSG:3857",
+                        "RTYPE": 0,
+                        "COMPRESS": 4,
+                        "JPEGCOMPRESSION": 75,
+                        "ZLEVEL": 6,
+                        "PREDICTOR": 1,
+                        "TILED": False,
+                        "BIGTIFF": 0,
+                        "TFW": False,
+                        "EXTRA": "",
+                        "OUTPUT": piped_3857
+                    }
+                    procRtn = processing.runalg("gdalogr:warpreproject",
+                                                warpArgs)
+                    # force exception on algorithm fail
+                    for val in procRtn:
+                        pass
+                except:
+                    try:
+                        warpArgs = {
+                            "INPUT": piped_file,
+                            "SOURCE_SRS": layer.crs().authid(),
+                            "DEST_SRS": "EPSG:3857",
+                            "NO_DATA": "",
+                            "TR": 0,
+                            "METHOD": 2,
+                            "RAST_EXT": extentRepNew,
+                            "RTYPE": 0,
+                            "COMPRESS": 4,
+                            "JPEGCOMPRESSION": 75,
+                            "ZLEVEL": 6,
+                            "PREDICTOR": 1,
+                            "TILED": False,
+                            "BIGTIFF": 0,
+                            "TFW": False,
+                            "EXTRA": "",
+                            "OUTPUT": piped_3857
+                        }
+                        procRtn = processing.runalg("gdalogr:warpreproject",
+                                                    warpArgs)
+                        # force exception on algorithm fail
+                        for val in procRtn:
+                            pass
+                    except:
+                        try:
+                            warpArgs = {
+                                "INPUT": piped_file,
+                                "SOURCE_SRS": layer.crs().authid(),
+                                "DEST_SRS": "EPSG:3857",
+                                "NO_DATA": "",
+                                "TR": 0,
+                                "METHOD": 2,
+                                "RTYPE": 0,
+                                "COMPRESS": 4,
+                                "JPEGCOMPRESSION": 75,
+                                "ZLEVEL": 6,
+                                "PREDICTOR": 1,
+                                "TILED": False,
+                                "BIGTIFF": 0,
+                                "TFW": False,
+                                "EXTRA": "",
+                                "OUTPUT": piped_3857
+                            }
+                            procRtn = processing.runalg(
+                                            "gdalogr:warpreproject",
+                                            warpArgs)
+                            # force exception on algorithm fail
+                            for val in procRtn:
+                                pass
+                        except:
+                            shutil.copyfile(piped_file, piped_3857)
+
+                try:
+                    processing.runalg("gdalogr:translate", piped_3857, 100,
+                                      True, "", 0, "", extentRepNew, False, 5,
+                                      4, 75, 6, 1, False, 0, False, "",
+                                      out_raster)
+                except:
+                    shutil.copyfile(piped_3857, out_raster)
 
 
 def is25d(layer, canvas):
@@ -242,7 +392,8 @@ def is25d(layer, canvas):
 
 def safeName(name):
     # TODO: we are assuming that at least one character is valid...
-    validChr = '123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ'
+    validChr = '_0123456789abcdefghijklmnopqrstuvwxyz' \
+               'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
     return ''.join(c for c in name if c in validChr)
 
 
@@ -305,3 +456,37 @@ def replaceInTemplate(template, values):
     for name, value in values.iteritems():
         s = s.replace(name, value)
     return s
+
+
+def exportImages(layer, field, layerFileName):
+    field_index = layer.fieldNameIndex(field)
+
+    try:
+        widget = layer.editFormConfig().widgetType(field_index)
+    except:
+        widget = layer.editorWidgetV2(field_index)
+    if widget != 'Photo':
+        return
+
+    fr = QgsFeatureRequest()
+    fr.setSubsetOfAttributes([field_index])
+
+    for feature in layer.getFeatures(fr):
+        photo_file_name = feature.attribute(field)
+        if type(photo_file_name) is not unicode:
+            continue
+
+        source_file_name = photo_file_name
+        if not os.path.isabs(source_file_name):
+            prj_fname = QgsProject.instance().fileName()
+            source_file_name = os.path.join(os.path.dirname(prj_fname),
+                                            source_file_name)
+
+        photo_file_name = re.sub(r'[\\/:]', '_', photo_file_name).strip()
+        photo_file_name = os.path.join(os.path.dirname(layerFileName),
+                                       '..', 'images', photo_file_name)
+
+        try:
+            shutil.copyfile(source_file_name, photo_file_name)
+        except IOError as e:
+            pass

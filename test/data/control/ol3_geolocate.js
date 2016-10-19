@@ -1,4 +1,31 @@
 
+isTracking = false;
+geolocateControl = function(opt_options) {
+    var options = opt_options || {};
+    var button = document.createElement('button');
+    button.className += ' fa fa-map-marker';
+    var handleGeolocate = function() {
+        if (isTracking) {
+            map.removeLayer(geolocateOverlay);
+            isTracking = false;
+      } else if (geolocation.getTracking()) {
+            map.addLayer(geolocateOverlay);
+            map.getView().setCenter(geolocation.getPosition());
+            isTracking = true;
+      }
+    };
+    button.addEventListener('click', handleGeolocate, false);
+    button.addEventListener('touchstart', handleGeolocate, false);
+    var element = document.createElement('div');
+    element.className = 'geolocate ol-unselectable ol-control';
+    element.appendChild(button);
+    ol.control.Control.call(this, {
+        element: element,
+        target: options.target
+    });
+};
+ol.inherits(geolocateControl, ol.control.Control);
+
 var container = document.getElementById('popup');
 var content = document.getElementById('popup-content');
 var closer = document.getElementById('popup-closer');
@@ -17,7 +44,7 @@ var expandedAttribution = new ol.control.Attribution({
 
 var map = new ol.Map({
     controls: ol.control.defaults({attribution:false}).extend([
-        expandedAttribution
+        expandedAttribution,new geolocateControl()
     ]),
     target: document.getElementById('map'),
     renderer: 'canvas',
@@ -27,6 +54,7 @@ var map = new ol.Map({
          maxZoom: 28, minZoom: 1
     })
 });
+
 map.getView().fit([-19383883.040497, 6812047.007010, -13724951.344204, 9560768.554391], map.getSize());
 
 var NO_POPUP = 0
@@ -39,7 +67,6 @@ var ALL_FIELDS = 1
  * @param layer {ol.Layer} Layer to find field info about
  */
 function getPopupFields(layerList, layer) {
-    popupLayers = [0];
     // Determine the index that the layer will have in the popupLayers Array,
     // if the layersList contains more items than popupLayers then we need to
     // adjust the index to take into account the base maps group
@@ -93,23 +120,34 @@ var onPointerMove = function(evt) {
         currentFeature = feature;
         currentLayer = layer;
         currentFeatureKeys = currentFeature.getKeys();
-        var field = getPopupFields(layersList, layer);
-        if (field == NO_POPUP) {
-        } else if (field == ALL_FIELDS) {
+        var doPopup = false;
+        for (k in layer.get('fieldImages')) {
+            if (layer.get('fieldImages')[k] != "Hidden") {
+                doPopup = true;
+            }
+        }
+        if (doPopup) {
             popupText = '<table>';
             for (var i=0; i<currentFeatureKeys.length; i++) {
                 if (currentFeatureKeys[i] != 'geometry') {
-                    popupField = '<th>' + currentFeatureKeys[i] + ':</th>'
-                    popupField += '<td>'+ currentFeature.get(currentFeatureKeys[i]) + '</td>';
+                    popupField = '';
+                    if (layer.get('fieldLabels')[currentFeatureKeys[i]] == "inline label") {
+                        popupField += '<th>' + layer.get('fieldAliases')[currentFeatureKeys[i]] + ':</th><td>';
+                    } else {
+                        popupField += '<td colspan="2">';
+                    }
+                    if (layer.get('fieldLabels')[currentFeatureKeys[i]] == "header label") {
+                        popupField += '<strong>' + layer.get('fieldAliases')[currentFeatureKeys[i]] + ':</strong><br />';
+                    }
+                    if (layer.get('fieldImages')[currentFeatureKeys[i]] != "Photo") {
+                        popupField += (currentFeature.get(currentFeatureKeys[i]) != null ? Autolinker.link(String(currentFeature.get(currentFeatureKeys[i]))) + '</td>' : '');
+                    } else {
+                        popupField += (currentFeature.get(currentFeatureKeys[i]) != null ? '<img src="images/' + currentFeature.get(currentFeatureKeys[i]).replace(/[\\\/:]/g, '_').trim()  + '" /></td>' : '');
+                    }
                     popupText = popupText + '<tr>' + popupField + '</tr>';
                 }
             }
             popupText = popupText + '</table>';
-        } else {
-            var value = feature.get(field);
-            if (value) {
-                popupText = '<strong>' + field + ':</strong> ' + value;
-            }  
         }
     });
 
@@ -183,24 +221,35 @@ var onSingleClick = function(evt) {
     map.forEachFeatureAtPixel(pixel, function(feature, layer) {
         currentFeature = feature;
         currentFeatureKeys = currentFeature.getKeys();
-        var field = getPopupFields(layersList, layer);
-        if (field == NO_POPUP) {
-        } else if (field == ALL_FIELDS) {
+        var doPopup = false;
+        for (k in layer.get('fieldImages')) {
+            if (layer.get('fieldImages')[k] != "Hidden") {
+                doPopup = true;
+            }
+        }
+        if (doPopup) {
             popupText = '<table>';
             for (var i=0; i<currentFeatureKeys.length; i++) {
                 if (currentFeatureKeys[i] != 'geometry') {
-                    popupField = '<th>' + currentFeatureKeys[i] + ':</th><td>'
-                    popupField += (currentFeature.get(currentFeatureKeys[i]) != null ? Autolinker.link(String(currentFeature.get(currentFeatureKeys[i]))) + '</td>' : '');
+                    popupField = '';
+                    if (layer.get('fieldLabels')[currentFeatureKeys[i]] == "inline label") {
+                        popupField += '<th>' + layer.get('fieldAliases')[currentFeatureKeys[i]] + ':</th><td>';
+                    } else {
+                        popupField += '<td colspan="2">';
+                    }
+                    if (layer.get('fieldLabels')[currentFeatureKeys[i]] == "header label") {
+                        popupField += '<strong>' + layer.get('fieldAliases')[currentFeatureKeys[i]] + ':</strong><br />';
+                    }
+                    if (layer.get('fieldImages')[currentFeatureKeys[i]] != "Photo") {
+                        popupField += (currentFeature.get(currentFeatureKeys[i]) != null ? Autolinker.link(String(currentFeature.get(currentFeatureKeys[i]))) + '</td>' : '');
+                    } else {
+                        popupField += (currentFeature.get(currentFeatureKeys[i]) != null ? '<img src="images/' + currentFeature.get(currentFeatureKeys[i]).replace(/[\\\/:]/g, '_').trim()  + '" /></td>' : '');
+                    }
                     popupText = popupText + '<tr>' + popupField + '</tr>';
                 }
             }
             popupText = popupText + '</table>';
-        } else {
-            var value = feature.get(field);
-            if (value) {
-                popupText = '<strong>' + field + ':</strong> '+ value;
-            }  
-        }          
+        }
     });
 
     if (popupText) {
@@ -228,7 +277,6 @@ map.on('singleclick', function(evt) {
   projection: map.getView().getProjection()
 });
 
-geolocation.setTracking(true);
 
 var accuracyFeature = new ol.Feature();
 geolocation.on('change:accuracyGeometry', function() {
@@ -256,11 +304,13 @@ geolocation.on('change:position', function() {
 });
 
 var geolocateOverlay = new ol.layer.Vector({
-  map: map,
   source: new ol.source.Vector({
     features: [accuracyFeature, positionFeature]
   })
 });
+
+geolocation.setTracking(true);
+
 
 
 var attribution = document.getElementsByClassName('ol-attribution')[0];

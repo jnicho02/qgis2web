@@ -18,7 +18,7 @@
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
 import sys
-from collections import defaultdict
+from collections import defaultdict, OrderedDict
 import webbrowser
 
 # This import is to enable SIP API V2
@@ -40,8 +40,8 @@ from leafletWriter import *
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-selectedLayerCombo = "None"
 projectInstance = QgsProject.instance()
+mainDlg = None
 
 
 class MainDialog(QDialog, Ui_MainDialog):
@@ -49,20 +49,24 @@ class MainDialog(QDialog, Ui_MainDialog):
     items = {}
 
     def __init__(self, iface):
+        global mainDlg
         QDialog.__init__(self)
         self.setupUi(self)
         self.iface = iface
+        mainDlg = self
         self.resize(QSettings().value("qgis2web/size", QSize(994, 647)))
         self.move(QSettings().value("qgis2web/pos", QPoint(50, 50)))
         self.paramsTreeOL.setSelectionMode(QAbstractItemView.SingleSelection)
         webview = self.preview.page()
         webview.setNetworkAccessManager(QgsNetworkAccessManager.instance())
-        self.populate_layers_and_groups(self)
         self.populateConfigParams(self)
+        self.populate_layers_and_groups(self)
+        self.populateLayerSearch()
         self.populateBasemaps()
         self.selectMapFormat()
         self.toggleOptions()
         self.previewMap()
+        self.layersTree.model().dataChanged.connect(self.populateLayerSearch)
         self.paramsTreeOL.itemClicked.connect(self.changeSetting)
         self.ol3.clicked.connect(self.changeFormat)
         self.leaflet.clicked.connect(self.changeFormat)
@@ -160,12 +164,15 @@ class MainDialog(QDialog, Ui_MainDialog):
 
     def saveSettings(self, paramItem, col):
         global projectInstance
-        projectInstance.removeEntry("qgis2web", paramItem.name)
+        projectInstance.removeEntry("qgis2web",
+                                    paramItem.name.replace(" ", ""))
         if isinstance(paramItem._value, bool):
-            projectInstance.writeEntry("qgis2web", paramItem.name,
+            projectInstance.writeEntry("qgis2web", paramItem.name.replace(" ",
+                                                                          ""),
                                        paramItem.checkState(col))
         else:
-            projectInstance.writeEntry("qgis2web", paramItem.name,
+            projectInstance.writeEntry("qgis2web", paramItem.name.replace(" ",
+                                                                          ""),
                                        paramItem.text(col))
         if paramItem.name == "Match project CRS":
             baseLayer = self.basemaps
@@ -174,19 +181,15 @@ class MainDialog(QDialog, Ui_MainDialog):
             else:
                 baseLayer.setDisabled(False)
 
-    def saveLayerComboSettings(self, value):
-        global selectedLayerCombo
-        if selectedLayerCombo != "None":
-            selectedLayerCombo.setCustomProperty("qgis2web/Info popup content",
-                                                 value)
-
     def populate_layers_and_groups(self, dlg):
         """Populate layers on QGIS into our layers and group tree view."""
-        root_node = QgsProject.instance().layerTreeRoot()
+        global projectInstance
+        root_node = projectInstance.layerTreeRoot()
         tree_groups = []
         tree_layers = root_node.findLayers()
         self.layers_item = QTreeWidgetItem()
         self.layers_item.setText(0, "Layers and Groups")
+        self.layersTree.setColumnCount(3)
 
         for tree_layer in tree_layers:
             layer = tree_layer.layer()
@@ -221,6 +224,34 @@ class MainDialog(QDialog, Ui_MainDialog):
             if item.checkState(0) != Qt.Checked:
                 item.setExpanded(False)
 
+    def populateLayerSearch(self):
+        global mainDlg
+        layerSearch = mainDlg.paramsTreeOL.itemWidget(
+                mainDlg.paramsTreeOL.findItems("Layer search",
+                                               (Qt.MatchExactly |
+                                                Qt.MatchRecursive))[0], 1)
+        layerSearch.clear()
+        layerSearch.addItem("None")
+        (layers, groups, popup, visible,
+         json, cluster) = self.getLayersAndGroups()
+        for layer in reversed(layers):
+            if layer.type() == layer.VectorLayer:
+                options = []
+                fields = layer.pendingFields()
+                for f in fields:
+                    fieldIndex = fields.indexFromName(unicode(f.name()))
+                    try:
+                        formCnf = layer.editFormConfig()
+                        editorWidget = formCnf.widgetType(fieldIndex)
+                    except:
+                        editorWidget = layer.editorWidgetV2(fieldIndex)
+                    if (editorWidget == QgsVectorLayer.Hidden or
+                            editorWidget == 'Hidden'):
+                        continue
+                    options.append(f.name())
+                for option in options:
+                    layerSearch.addItem(layer.name() + ": " + option)
+
     def populateConfigParams(self, dlg):
         global projectInstance
         self.items = defaultdict(dict)
@@ -231,28 +262,33 @@ class MainDialog(QDialog, Ui_MainDialog):
                 isTuple = False
                 if isinstance(value, bool):
                     value = projectInstance.readBoolEntry("qgis2web",
-                                                          param)[0]
+                                                          param.replace(" ",
+                                                                        ""))[0]
                 elif isinstance(value, int):
                     if projectInstance.readNumEntry("qgis2web",
-                                                    param)[0] != 0:
-                        value = projectInstance.readNumEntry("qgis2web",
-                                                             param)[0]
+                                                    param.replace(" ",
+                                                                  ""))[0] != 0:
+                        value = projectInstance.readNumEntry(
+                                "qgis2web", param.replace(" ", ""))[0]
                 elif isinstance(value, tuple):
                     isTuple = True
-                    if projectInstance.readNumEntry("qgis2web",
-                                                    param)[0] != 0:
+                    if projectInstance.readNumEntry(
+                            "qgis2web", param.replace(" ", ""))[0] != 0:
                         comboSelection = projectInstance.readNumEntry(
-                            "qgis2web", param)[0]
+                            "qgis2web", param.replace(" ", ""))[0]
                     elif param == "Max zoom level":
                         comboSelection = 27
                     else:
                         comboSelection = 0
                 else:
                     if (isinstance(projectInstance.readEntry("qgis2web",
-                                   param)[0], basestring) and
-                            projectInstance.readEntry("qgis2web",
-                                                      param)[0] != ""):
-                        value = projectInstance.readEntry("qgis2web", param)[0]
+                                   param.replace(" ", ""))[0], basestring) and
+                            projectInstance.readEntry(
+                                    "qgis2web",
+                                    param.replace(" ", ""))[0] != ""):
+                        value = projectInstance.readEntry("qgis2web",
+                                                          param.replace(" ",
+                                                                        ""))[0]
                 subitem = TreeSettingItem(item, self.paramsTreeOL,
                                           param, value, dlg)
                 if isTuple:
@@ -266,6 +302,11 @@ class MainDialog(QDialog, Ui_MainDialog):
         self.paramsTreeOL.expandAll()
         self.paramsTreeOL.resizeColumnToContents(0)
         self.paramsTreeOL.resizeColumnToContents(1)
+        searchCombo = dlg.paramsTreeOL.itemWidget(
+                dlg.paramsTreeOL.findItems("Layer search",
+                                           (Qt.MatchExactly |
+                                            Qt.MatchRecursive))[0], 1)
+        searchCombo.removeItem(1)
 
     def populateBasemaps(self):
         multiSelect = QtGui.QAbstractItemView.ExtendedSelection
@@ -344,7 +385,8 @@ class MainDialog(QDialog, Ui_MainDialog):
         parameters = defaultdict(dict)
         for group, settings in self.items.iteritems():
             for param, item in settings.iteritems():
-                projectInstance.writeEntry("qgis2web", param, item.setting())
+                projectInstance.writeEntry("qgis2web", param.replace(" ", ""),
+                                           item.setting())
         basemaps = self.basemaps.selectedItems()
         basemaplist = ",".join(basemap.text() for basemap in basemaps)
         projectInstance.writeEntry("qgis2web", "Basemaps", basemaplist)
@@ -398,6 +440,13 @@ class MainDialog(QDialog, Ui_MainDialog):
 
     def closeEvent(self, event):
         self.saveParameters()
+        (layers, groups, popup, visible,
+         json, cluster) = self.getLayersAndGroups()
+        for layer, pop in zip(layers, popup):
+            attrDict = {}
+            for attr in pop:
+                attrDict['attr'] = pop[attr]
+                layer.setCustomProperty("qgis2web/popup/" + attr, pop[attr])
         QSettings().setValue("qgis2web/size", self.size())
         QSettings().setValue("qgis2web/pos", self.pos())
         event.accept()
@@ -407,14 +456,17 @@ class devToggleFilter(QObject):
     devToggle = pyqtSignal()
 
     def eventFilter(self, obj, event):
-        if event.type() == QEvent.KeyPress:
-            if event.key() == Qt.Key_F12:
-                self.devToggle.emit()
-                if obj.devConsole.height() != 0:
-                    obj.devConsole.setFixedHeight(0)
-                else:
-                    obj.devConsole.setFixedHeight(168)
-                return True
+        try:
+            if event.type() == QEvent.KeyPress:
+                if event.key() == Qt.Key_F12:
+                    self.devToggle.emit()
+                    if obj.devConsole.height() != 0:
+                        obj.devConsole.setFixedHeight(0)
+                    else:
+                        obj.devConsole.setFixedHeight(168)
+                    return True
+        except:
+            pass
         return False
 
 
@@ -460,20 +512,35 @@ class TreeLayerItem(QTreeWidgetItem):
             self.setCheckState(0, Qt.Unchecked)
         if layer.type() == layer.VectorLayer:
             self.popupItem = QTreeWidgetItem(self)
-            self.popupItem.setText(0, "Info popup content")
-            self.combo = QComboBox()
-            options = ["No popup", "Show all attributes"]
-            for f in self.layer.pendingFields():
-                options.append("FIELD:" + f.name())
+            self.popupItem.setText(0, "Popup fields")
+            options = []
+            fields = self.layer.pendingFields()
+            for f in fields:
+                fieldIndex = fields.indexFromName(unicode(f.name()))
+                try:
+                    formCnf = layer.editFormConfig()
+                    editorWidget = formCnf.widgetType(fieldIndex)
+                except:
+                    editorWidget = layer.editorWidgetV2(fieldIndex)
+                if (editorWidget == QgsVectorLayer.Hidden or
+                        editorWidget == 'Hidden'):
+                    continue
+                options.append(f.name())
             for option in options:
-                self.combo.addItem(option)
+                self.attr = QTreeWidgetItem(self)
+                self.attrWidget = QComboBox()
+                self.attrWidget.addItem("no label")
+                self.attrWidget.addItem("inline label")
+                self.attrWidget.addItem("header label")
+                custProp = layer.customProperty("qgis2web/popup/" + option)
+                if (custProp != "" and custProp is not None):
+                    self.attrWidget.setCurrentIndex(
+                        self.attrWidget.findText(
+                            layer.customProperty("qgis2web/popup/" + option)))
+                self.attr.setText(1, option)
+                self.popupItem.addChild(self.attr)
+                tree.setItemWidget(self.attr, 2, self.attrWidget)
             self.addChild(self.popupItem)
-            if layer.customProperty("qgis2web/Info popup content"):
-                self.combo.setCurrentIndex(int(
-                    layer.customProperty("qgis2web/Info popup content")))
-            self.combo.highlighted.connect(self.clickCombo)
-            self.combo.currentIndexChanged.connect(dlg.saveLayerComboSettings)
-            tree.setItemWidget(self.popupItem, 1, self.combo)
         self.visibleItem = QTreeWidgetItem(self)
         self.visibleCheck = QCheckBox()
         if layer.customProperty("qgis2web/Visible") == 0:
@@ -506,14 +573,15 @@ class TreeLayerItem(QTreeWidgetItem):
 
     @property
     def popup(self):
-        try:
-            idx = self.combo.currentIndex()
-            if idx < 2:
-                popup = idx
-            else:
-                popup = self.combo.currentText()[len("FIELD:"):]
-        except:
-            popup = utils.NO_POPUP
+        popup = []
+        self.tree = self.treeWidget()
+        for p in xrange(self.childCount()):
+            item = self.child(p).text(1)
+            if item != "":
+                popupVal = self.tree.itemWidget(self.child(p), 2).currentText()
+                pair = (item, popupVal)
+                popup.append(pair)
+        popup = OrderedDict(popup)
         return popup
 
     @property
@@ -533,10 +601,6 @@ class TreeLayerItem(QTreeWidgetItem):
             return self.clusterCheck.isChecked()
         except:
             return False
-
-    def clickCombo(self):
-        global selectedLayerCombo
-        selectedLayerCombo = self.layer
 
     def changeVisible(self, isVisible):
         self.layer.setCustomProperty("qgis2web/Visible", isVisible)

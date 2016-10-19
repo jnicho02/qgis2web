@@ -22,6 +22,7 @@ import math
 import time
 import shutil
 import traceback
+import xml.etree.ElementTree
 from qgis.core import *
 from utils import exportLayers, safeName, replaceInTemplate, is25d
 from qgis.utils import iface
@@ -37,6 +38,8 @@ def writeOL(iface, layers, groups, popup, visible,
     QApplication.setOverrideCursor(QCursor(Qt.WaitCursor))
     stamp = time.strftime("%Y_%m_%d-%H_%M_%S")
     folder = os.path.join(folder, 'qgis2web_' + unicode(stamp))
+    imagesFolder = os.path.join(folder, "images")
+    QDir().mkpath(imagesFolder)
     try:
         dst = os.path.join(folder, "resources")
         if not os.path.exists(dst):
@@ -46,15 +49,10 @@ def writeOL(iface, layers, groups, popup, visible,
         matchCRS = settings["Appearance"]["Match project CRS"]
         precision = settings["Data export"]["Precision"]
         optimize = settings["Data export"]["Minify GeoJSON files"]
-        cleanUnusedFields = settings["Data export"]["Delete unused fields"]
-        if not cleanUnusedFields:
-            usedFields = [ALL_ATTRIBUTES] * len(popup)
-        else:
-            usedFields = popup
         exportLayers(iface, layers, folder, precision,
-                     optimize, usedFields, json)
+                     optimize, popup, json)
         exportStyles(layers, folder, clustered)
-        osmb = writeLayersAndGroups(layers, groups, visible, folder,
+        osmb = writeLayersAndGroups(layers, groups, visible, folder, popup,
                                     settings, json, matchCRS, clustered, iface)
         jsAddress = '<script src="resources/polyfills.js"></script>'
         if settings["Data export"]["Mapping library location"] == "Local":
@@ -64,11 +62,36 @@ def writeOL(iface, layers, groups, popup, visible,
         <script src="./resources/ol.js"></script>"""
         else:
             cssAddress = """<link rel="stylesheet" href="http://"""
-            cssAddress += """openlayers.org/en/v3.12.1/css/ol.css" />"""
+            cssAddress += """openlayers.org/en/v3.18.2/css/ol.css" />"""
             jsAddress += """
-        <script src="http://openlayers.org/en/v3.12.1/"""
+        <script src="http://openlayers.org/en/v3.18.2/"""
             jsAddress += """build/ol.js"></script>"""
-        jsAddress += """
+        layerSearch = settings["Appearance"]["Layer search"]
+        if layerSearch != "None" and layerSearch != "":
+            cssAddress += """
+        <link rel="stylesheet" href="resources/horsey.min.css">
+        <link rel="stylesheet" href="resources/ol3-search-layer.min.css">"""
+            jsAddress += """
+        <script src="http://cdn.polyfill.io/v2/polyfill.min.js?features="""
+            jsAddress += """Element.prototype.classList,URL"></script>
+        <script src="resources/horsey.min.js"></script>
+        <script src="resources/ol3-search-layer.min.js"></script>"""
+            searchVals = layerSearch.split(": ")
+            layerSearch = """
+    var searchLayer = new ol.SearchLayer({{
+      layer: lyr_{layer},
+      colName: '{field}',
+      zoom: 10,
+      collapsed: true,
+      map: map
+    }});
+
+    map.addControl(searchLayer);""".format(layer=searchVals[0],
+                                           field=searchVals[1])
+        else:
+            layerSearch = ""
+        if osmb != "":
+            jsAddress += """
         <script src="resources/OSMBuildings-OL3.js"></script>"""
         geojsonVars = ""
         wfsVars = ""
@@ -80,6 +103,18 @@ def writeOL(iface, layers, groups, popup, visible,
                                     (safeName(layer.name()) + ".js"))
                 else:
                     layerSource = layer.source()
+                    if "retrictToRequestBBOX" in layerSource:
+                        provider = layer.dataProvider()
+                        uri = QgsDataSourceURI(provider.dataSourceUri())
+                        wfsURL = uri.param("url")
+                        wfsTypename = uri.param("typename")
+                        wfsSRS = uri.param("srsname")
+                        layerSource = wfsURL
+                        layerSource += "?SERVICE=WFS&VERSION=1.0.0&"
+                        layerSource += "REQUEST=GetFeature&TYPENAME="
+                        layerSource += wfsTypename
+                        layerSource += "&SRSNAME="
+                        layerSource += wfsSRS
                     if not matchCRS:
                         layerSource = re.sub('SRSNAME\=EPSG\:\d+',
                                              'SRSNAME=EPSG:3857', layerSource)
@@ -89,11 +124,11 @@ def writeOL(iface, layers, groups, popup, visible,
                     wfsVars += ('<script src="%s"></script>' % layerSource)
                 styleVars += ('<script src="styles/%s_style.js"></script>' %
                               (safeName(layer.name())))
-        popupLayers = "popupLayers = [%s];" % ",".join(['"%s"' % field if (
-            isinstance(field, basestring)) else
-            unicode(field) for field in popup])
-        controls = ['expandedAttribution']  # Check qgis2web.js 14:7
-        if settings["Appearance"]["Add scale bar"]:
+        popupLayers = "popupLayers = [%s];" % ",".join(
+                ['1' for field in popup])
+        controls = ['expandedAttribution']
+        project = QgsProject.instance()
+        if project.readBoolEntry("ScaleBar", "/Enabled", False)[0]:
             controls.append("new ol.control.ScaleLine({})")
         if settings["Appearance"]["Add layers list"]:
             controls.append(
@@ -101,7 +136,10 @@ def writeOL(iface, layers, groups, popup, visible,
         if settings["Appearance"]["Measure tool"] != "None":
             controls.append(
                 'new measureControl()')
-        pageTitle = QgsProject.instance().title()
+        if settings["Appearance"]["Geolocate user"]:
+            controls.append(
+                'new geolocateControl()')
+        pageTitle = project.title()
         mapSettings = iface.mapCanvas().mapSettings()
         backgroundColor = """
         <style>
@@ -110,6 +148,8 @@ def writeOL(iface, layers, groups, popup, visible,
         }}
         </style>
 """.format(bgcol=mapSettings.backgroundColor().name())
+        geolocateUser = settings["Appearance"]["Geolocate user"]
+        backgroundColor += geolocateStyle(geolocateUser)
         mapbounds = bounds(iface,
                            settings["Scale/Zoom"]["Extent"] == "Canvas extent",
                            layers,
@@ -124,13 +164,13 @@ def writeOL(iface, layers, groups, popup, visible,
         highlight = unicode(highlightFeatures).lower()
         highlightFill = mapSettings.selectionColor().name()
         proj4 = ""
-        projdef = ""
+        proj = ""
         view = "%s maxZoom: %d, minZoom: %d" % (mapextent, maxZoom, minZoom)
         if settings["Appearance"]["Match project CRS"]:
             proj4 = """
 <script src="http://cdnjs.cloudflare.com/ajax/libs/proj4js/2.3.6/proj4.js">"""
             proj4 += "</script>"
-            projdef = "<script>proj4.defs('{epsg}','{defn}');</script>".format(
+            proj = "<script>proj4.defs('{epsg}','{defn}');</script>".format(
                 epsg=mapSettings.destinationCrs().authid(),
                 defn=mapSettings.destinationCrs().toProj4())
             view += ", projection: '%s'" % (
@@ -150,13 +190,18 @@ def writeOL(iface, layers, groups, popup, visible,
             measure = ""
             measureUnit = ""
             measureStyle = ""
-        geolocate = geolocation(settings["Appearance"]["Geolocate user"])
+        geolocateHead = geolocationHead(geolocateUser)
+        geolocate = geolocation(geolocateUser)
         geocode = settings["Appearance"]["Add address search"]
         geocodingLinks = geocodeLinks(geocode)
         geocodingScript = geocodeScript(geocode)
         extracss = """
         <link rel="stylesheet" href="./resources/ol3-layerswitcher.css">
         <link rel="stylesheet" href="./resources/qgis2web.css">"""
+        if settings["Appearance"]["Geolocate user"]:
+            extracss += """
+        <link rel="stylesheet" href="http://maxcdn.bootstrapcdn.com/"""
+            extracss += """font-awesome/4.6.3/css/font-awesome.min.css">"""
         ol3layerswitcher = """
         <script src="./resources/ol3-layerswitcher.js"></script>"""
         ol3popup = """<div id="popup" class="ol-popup">
@@ -183,7 +228,7 @@ def writeOL(iface, layers, groups, popup, visible,
                   "@OL3_GEOJSONVARS@": geojsonVars,
                   "@OL3_WFSVARS@": wfsVars,
                   "@OL3_PROJ4@": proj4,
-                  "@OL3_PROJDEF@": projdef,
+                  "@OL3_PROJDEF@": proj,
                   "@OL3_GEOCODINGLINKS@": geocodingLinks,
                   "@QGIS2WEBJS@": ol3qgis2webjs,
                   "@OL3_LAYERSWITCHER@": ol3layerswitcher,
@@ -195,6 +240,8 @@ def writeOL(iface, layers, groups, popup, visible,
                   "@LEAFLET_ADDRESSJS@": "",
                   "@LEAFLET_MEASUREJS@": "",
                   "@LEAFLET_CRSJS@": "",
+                  "@LEAFLET_LAYERSEARCHCSS@": "",
+                  "@LEAFLET_LAYERSEARCHJS@": "",
                   "@LEAFLET_CLUSTERCSS@": "",
                   "@LEAFLET_CLUSTERJS@": ""}
         with open(os.path.join(folder, "index.html"), "w") as f:
@@ -204,10 +251,12 @@ def writeOL(iface, layers, groups, popup, visible,
             templateOutput = replaceInTemplate(htmlTemplate + ".html", values)
             templateOutput = re.sub('\n[\s_]+\n', '\n', templateOutput)
             f.write(templateOutput)
-        values = {"@BOUNDS@": mapbounds,
+        values = {"@GEOLOCATEHEAD@": geolocateHead,
+                  "@BOUNDS@": mapbounds,
                   "@CONTROLS@": ",".join(controls),
                   "@POPUPLAYERS@": popupLayers,
                   "@VIEW@": view,
+                  "@LAYERSEARCH@": layerSearch,
                   "@ONHOVER@": onHover,
                   "@DOHIGHLIGHT@": highlight,
                   "@HIGHLIGHTFILL@": highlightFill,
@@ -227,7 +276,7 @@ def writeOL(iface, layers, groups, popup, visible,
     return os.path.join(folder, "index.html")
 
 
-def writeLayersAndGroups(layers, groups, visible, folder,
+def writeLayersAndGroups(layers, groups, visible, folder, popup,
                          settings, json, matchCRS, clustered, iface):
 
     canvas = iface.mapCanvas()
@@ -339,6 +388,46 @@ osmb.set(geojson_{sln});""".format(shadows=shadows, sln=safeName(layer.name()))
         layersList.append(layer)
     layersListString = "var layersList = [" + ",".join(layersList) + "];"
 
+    fieldAliases = ""
+    fieldImages = ""
+    fieldLabels = ""
+    for layer, labels in zip(layers, popup):
+        if layer.type() == layer.VectorLayer:
+            fieldList = layer.pendingFields()
+            aliasFields = ""
+            imageFields = ""
+            labelFields = ""
+            for field, label in zip(labels.keys(), labels.values()):
+                labelFields += "'%(field)s': '%(label)s', " % (
+                        {"field": field, "label": label})
+            labelFields = "{%(labelFields)s});\n" % (
+                    {"labelFields": labelFields})
+            labelFields = "lyr_%(name)s.set('fieldLabels', " % (
+                        {"name": safeName(layer.name())}) + labelFields
+            fieldLabels += labelFields
+            for f in fieldList:
+                fieldIndex = fieldList.indexFromName(unicode(f.name()))
+                aliasFields += "'%(field)s': '%(alias)s', " % (
+                        {"field": f.name(),
+                         "alias": layer.attributeDisplayName(fieldIndex)})
+                try:
+                    widget = layer.editFormConfig().widgetType(fieldIndex)
+                except:
+                    widget = layer.editorWidgetV2(fieldIndex)
+                imageFields += "'%(field)s': '%(image)s', " % (
+                        {"field": f.name(),
+                         "image": widget})
+            aliasFields = "{%(aliasFields)s});\n" % (
+                        {"aliasFields": aliasFields})
+            aliasFields = "lyr_%(name)s.set('fieldAliases', " % (
+                        {"name": safeName(layer.name())}) + aliasFields
+            fieldAliases += aliasFields
+            imageFields = "{%(imageFields)s});\n" % (
+                        {"imageFields": imageFields})
+            imageFields = "lyr_%(name)s.set('fieldImages', " % (
+                        {"name": safeName(layer.name())}) + imageFields
+            fieldImages += imageFields
+
     path = os.path.join(folder, "layers", "layers.js")
     with codecs.open(path, "w", "utf-8") as f:
         if basemapList:
@@ -347,6 +436,9 @@ osmb.set(geojson_{sln});""".format(shadows=shadows, sln=safeName(layer.name()))
         f.write(groupVars + "\n")
         f.write(visibility + "\n")
         f.write(layersListString + "\n")
+        f.write(fieldAliases)
+        f.write(fieldImages)
+        f.write(fieldLabels)
     return osmb
 
 
@@ -418,6 +510,22 @@ def layerToJavascript(iface, layer, encode2json, matchCRS, cluster):
             cluster = True
         else:
             cluster = False
+        if isinstance(renderer, QgsHeatmapRenderer):
+            pointLayerType = "Heatmap"
+            hmRadius = renderer.radius()
+            colorRamp = renderer.colorRamp()
+            hmStart = colorRamp.color1().name()
+            hmEnd = colorRamp.color2().name()
+            hmRamp = "['" + hmStart + "', "
+            hmStops = colorRamp.stops()
+            for stop in hmStops:
+                hmRamp += "'" + stop.color.name() + "', "
+            hmRamp += "'" + hmEnd + "']"
+            hmWeight = renderer.weightExpression()
+            hmWeightId = layer.fieldNameIndex(hmWeight)
+            hmWeightMax = layer.maximumValue(hmWeightId)
+        else:
+            pointLayerType = "Vector"
         if matchCRS:
             mapCRS = iface.mapCanvas().mapSettings().destinationCrs().authid()
             crsConvert = """
@@ -465,17 +573,35 @@ jsonSource_%(n)s.addFeatures(features_%(n)s);''' % {"n": layerName,
   distance: 10,
   source: jsonSource_%(n)s
 });''' % {"n": layerName}
-            layerCode += '''var lyr_%(n)s = new ol.layer.Vector({
-                source:''' % {"n": layerName}
+            layerCode += '''var lyr_%(n)s = new ol.layer.%(t)s({
+                source:''' % {"n": layerName, "t": pointLayerType}
             if cluster:
                 layerCode += 'cluster_%(n)s,' % {"n": layerName}
             else:
                 layerCode += 'jsonSource_%(n)s,' % {"n": layerName}
-            layerCode += '''%(min)s %(max)s
-                style: style_%(n)s,
+            layerCode += '''%(min)s %(max)s''' % {"min": minResolution,
+                                                  "max": maxResolution}
+            if pointLayerType == "Vector":
+                layerCode += '''
+                style: style_%(n)s,''' % {"n": layerName}
+            else:
+                layerCode += '''
+                radius: %(hmRadius)d * 2,
+                gradient: %(hmRamp)s,
+                blur: 15,
+                shadow: 250,''' % {"hmRadius": hmRadius, "hmRamp": hmRamp}
+                if hmWeight != "":
+                    layerCode += '''
+                weight: function(feature){
+                    var weightField = '%(hmWeight)s';
+                    var featureWeight = feature.get(weightField);
+                    var maxWeight = %(hmWeightMax)d;
+                    var calibratedWeight = featureWeight/maxWeight;
+                    return calibratedWeight;
+                },''' % {"hmWeight": hmWeight, "hmWeightMax": hmWeightMax}
+            layerCode += '''
                 title: "%(name)s"
-            });''' % {"name": layer.name(), "n": layerName,
-                      "min": minResolution, "max": maxResolution}
+            });''' % {"name": layer.name()}
             return layerCode
     elif layer.type() == layer.RasterLayer:
         if layer.providerType().lower() == "wms":
@@ -496,14 +622,18 @@ jsonSource_%(n)s.addFeatures(features_%(n)s);''' % {"n": layerName,
                                 "maxRes": maxResolution}
         elif layer.providerType().lower() == "gdal":
             provider = layer.dataProvider()
-            transform = QgsCoordinateTransform(provider.crs(),
-                                               QgsCoordinateReferenceSystem(
-                                                   "EPSG:3857"))
-            extent = transform.transform(provider.extent())
-            sExtent = "[%f, %f, %f, %f]" % (extent.xMinimum(),
-                                            extent.yMinimum(),
-                                            extent.xMaximum(),
-                                            extent.yMaximum())
+
+            crsSrc = layer.crs()
+            crsDest = QgsCoordinateReferenceSystem(3857)
+
+            xform = QgsCoordinateTransform(crsSrc, crsDest)
+            extentRep = xform.transform(layer.extent())
+
+            sExtent = "[%f, %f, %f, %f]" % (extentRep.xMinimum(),
+                                            extentRep.yMinimum(),
+                                            extentRep.xMaximum(),
+                                            extentRep.yMaximum())
+
             return '''var lyr_%(n)s = new ol.layer.Image({
                             opacity: 1,
                             title: "%(name)s",
@@ -536,6 +666,15 @@ def exportStyles(layers, folder, clustered):
         if (labelsEnabled):
             labelField = layer.customProperty("labeling/fieldName")
             if labelField != "":
+                fieldIndex = layer.pendingFields().indexFromName(labelField)
+                try:
+                    editFormConfig = layer.editFormConfig()
+                    editorWidget = editFormConfig.widgetType(fieldIndex)
+                except:
+                    editorWidget = layer.editorWidgetV2(fieldIndex)
+                if (editorWidget == QgsVectorLayer.Hidden or
+                        editorWidget == 'Hidden'):
+                    labelField = "q2wHide_" + labelField
                 labelText = ('feature.get("%s")' %
                              labelField.replace('"', '\\"'))
             else:
@@ -561,18 +700,30 @@ def exportStyles(layers, folder, clustered):
                                                                layer_alpha)
                 value = 'var value = ""'
             elif isinstance(renderer, QgsCategorizedSymbolRendererV2):
-                defs += "var categories_%s = {" % safeName(layer.name())
+                defs += """function categories_%s(feature, value) {
+                switch(value) {""" % safeName(layer.name())
                 cats = []
                 for cat in renderer.categories():
-                    cats.append('"%s": %s' %
+                    cats.append('''case "%s":
+                    return %s;
+                    break;''' %
                                 (cat.value(), getSymbolAsStyle(
                                     cat.symbol(),
                                     stylesFolder,
                                     layer_alpha)))
-                defs += ",\n".join(cats) + "};"
-                value = ('var value = feature.get("%s");' %
-                         renderer.classAttribute())
-                style = ('''var style = categories_%s[value]''' %
+                defs += "\n".join(cats) + "}};"
+                classAttr = renderer.classAttribute()
+                fieldIndex = layer.pendingFields().indexFromName(classAttr)
+                try:
+                    editFormConfig = layer.editFormConfig()
+                    editorWidget = editFormConfig.widgetType(fieldIndex)
+                except:
+                    editorWidget = layer.editorWidgetV2(fieldIndex)
+                if (editorWidget == QgsVectorLayer.Hidden or
+                        editorWidget == 'Hidden'):
+                    classAttr = "q2wHide_" + classAttr
+                value = ('var value = feature.get("%s");' % classAttr)
+                style = ('''var style = categories_%s(feature, value)''' %
                          (safeName(layer.name())))
             elif isinstance(renderer, QgsGraduatedSymbolRendererV2):
                 varName = "ranges_" + safeName(layer.name())
@@ -585,8 +736,17 @@ def exportStyles(layers, folder, clustered):
                                                     ran.upperValue(),
                                                     symbolstyle))
                 defs += ",\n".join(ranges) + "];"
-                value = ('var value = feature.get("%s");' %
-                         renderer.classAttribute())
+                classAttr = renderer.classAttribute()
+                fieldIndex = layer.pendingFields().indexFromName(classAttr)
+                try:
+                    editFormConfig = layer.editFormConfig()
+                    editorWidget = editFormConfig.widgetType(fieldIndex)
+                except:
+                    editorWidget = layer.editorWidgetV2(fieldIndex)
+                if (editorWidget == QgsVectorLayer.Hidden or
+                        editorWidget == 'Hidden'):
+                    classAttr = "q2wHide_" + classAttr
+                value = ('var value = feature.get("%s");' % classAttr)
                 style = '''var style = %(v)s[0][2];
     for (i = 0; i < %(v)s.length; i++){
         var range = %(v)s[i];
@@ -600,15 +760,41 @@ def exportStyles(layers, folder, clustered):
                 size = float(layer.customProperty("labeling/fontSize")) * 1.3
             else:
                 size = 10
+            italic = layer.customProperty("labeling/fontItalic")
+            bold = layer.customProperty("labeling/fontWeight")
             r = layer.customProperty("labeling/textColorR")
             g = layer.customProperty("labeling/textColorG")
             b = layer.customProperty("labeling/textColorB")
             color = "rgba(%s, %s, %s, 255)" % (r, g, b)
+            face = layer.customProperty("labeling/fontFamily")
+            palyr = QgsPalLayerSettings()
+            palyr.readFromLayer(layer)
+            sv = palyr.scaleVisibility
+            if sv:
+                min = float(palyr.scaleMin)
+                max = float(palyr.scaleMax)
+                min = 1 / ((1 / min) * 39.37 * 90.7)
+                max = 1 / ((1 / max) * 39.37 * 90.7)
+                labelRes = " && resolution > %(min)d " % {"min": min}
+                labelRes += "&& resolution < %(max)d" % {"max": max}
+            else:
+                labelRes = ""
+            buffer = palyr.bufferDraw
+            if buffer:
+                bufferColor = palyr.bufferColor.name()
+                bufferWidth = palyr.bufferSize
+                stroke = """
+              stroke: new ol.style.Stroke({
+                color: "%s",
+                width: %d
+              }),""" % (bufferColor, bufferWidth)
+            else:
+                stroke = ""
             if style != "":
                 style = '''function(feature, resolution){
     %(value)s
     %(style)s;
-    if (%(label)s !== null) {
+    if (%(label)s !== null%(labelRes)s) {
         var labelText = String(%(label)s);
     } else {
         var labelText = ""
@@ -617,7 +803,7 @@ def exportStyles(layers, folder, clustered):
 
     if (!%(cache)s[key]){
         var text = new ol.style.Text({
-              font: '%(size)spx Calibri,sans-serif',
+              font: '%(size)spx \\'%(face)s\\', sans-serif',
               text: labelText,
               textBaseline: "center",
               textAlign: "left",
@@ -625,7 +811,7 @@ def exportStyles(layers, folder, clustered):
               offsetY: 3,
               fill: new ol.style.Fill({
                 color: "%(color)s"
-              }),
+              }),%(stroke)s
             });
         %(cache)s[key] = new ol.style.Style({"text": text})
     }
@@ -633,9 +819,10 @@ def exportStyles(layers, folder, clustered):
     allStyles.push.apply(allStyles, style);
     return allStyles;
 }''' % {
-                    "style": style, "label": labelText,
+                    "style": style, "labelRes": labelRes, "label": labelText,
                     "cache": "styleCache_" + safeName(layer.name()),
-                    "size": size, "color": color, "value": value}
+                    "size": size, "face": face, "color": color,
+                    "stroke": stroke, "value": value}
             else:
                 style = "''"
         except Exception, e:
@@ -671,15 +858,29 @@ def getSymbolAsStyle(symbol, stylesFolder, layer_transparency):
             color = getRGBAColor(props["color"], alpha)
             borderColor = getRGBAColor(props["outline_color"], alpha)
             borderWidth = props["outline_width"]
-            size = symbol.size()
+            size = symbol.size() * 2
             style = "image: %s" % getCircle(color, borderColor, borderWidth,
                                             size, props)
         elif isinstance(sl, QgsSvgMarkerSymbolLayerV2):
             path = os.path.join(stylesFolder, os.path.basename(sl.path()))
+            svg = xml.etree.ElementTree.parse(sl.path()).getroot()
+            svgWidth = svg.attrib["width"]
+            svgWidth = re.sub("px", "", svgWidth)
+            svgHeight = svg.attrib["height"]
+            svgHeight = re.sub("px", "", svgHeight)
+            if symbol.dataDefinedAngle().isActive():
+                if symbol.dataDefinedAngle().useExpression():
+                    rot = "0"
+                else:
+                    rot = "feature.get("
+                    rot += symbol.dataDefinedAngle().expressionOrField()
+                    rot += ") * 0.0174533"
+            else:
+                rot = unicode(sl.angle() * 0.0174533)
             shutil.copy(sl.path(), path)
             style = ("image: %s" %
                      getIcon("styles/" + os.path.basename(sl.path()),
-                             sl.size()))
+                             sl.size(), svgWidth, svgHeight, rot))
         elif isinstance(sl, QgsSimpleLineSymbolLayerV2):
 
             # Check for old version
@@ -749,16 +950,21 @@ def getCircle(color, borderColor, borderWidth, size, props):
              getFillStyle(color, props)))
 
 
-def getIcon(path, size):
+def getIcon(path, size, svgWidth, svgHeight, rot):
     size = math.floor(float(size) * 3.8)
     anchor = size / 2
+    scale = unicode(float(size)/float(svgWidth))
     return '''new ol.style.Icon({
-                  size: [%(s)d, %(s)d],
+                  imgSize: [%(w)s, %(h)s],
+                  scale: %(scale)s,
                   anchor: [%(a)d, %(a)d],
                   anchorXUnits: "pixels",
                   anchorYUnits: "pixels",
+                  rotation: %(rot)s,
                   src: "%(path)s"
-            })''' % {"s": size, "a": anchor,
+            })''' % {"w": svgWidth, "h": svgHeight,
+                     "scale": scale, "rot": rot,
+                     "s": size, "a": anchor,
                      "path": path.replace("\\", "\\\\")}
 
 
@@ -806,7 +1012,6 @@ def geolocation(geolocate):
   projection: map.getView().getProjection()
 });
 
-geolocation.setTracking(true);
 
 var accuracyFeature = new ol.Feature();
 geolocation.on('change:accuracyGeometry', function() {
@@ -834,11 +1039,62 @@ geolocation.on('change:position', function() {
 });
 
 var geolocateOverlay = new ol.layer.Vector({
-  map: map,
   source: new ol.source.Vector({
     features: [accuracyFeature, positionFeature]
   })
-});"""
+});
+
+geolocation.setTracking(true);
+"""
+    else:
+        return ""
+
+
+def geolocationHead(geolocate):
+    if geolocate:
+        return """
+isTracking = false;
+geolocateControl = function(opt_options) {
+    var options = opt_options || {};
+    var button = document.createElement('button');
+    button.className += ' fa fa-map-marker';
+    var handleGeolocate = function() {
+        if (isTracking) {
+            map.removeLayer(geolocateOverlay);
+            isTracking = false;
+      } else if (geolocation.getTracking()) {
+            map.addLayer(geolocateOverlay);
+            map.getView().setCenter(geolocation.getPosition());
+            isTracking = true;
+      }
+    };
+    button.addEventListener('click', handleGeolocate, false);
+    button.addEventListener('touchstart', handleGeolocate, false);
+    var element = document.createElement('div');
+    element.className = 'geolocate ol-unselectable ol-control';
+    element.appendChild(button);
+    ol.control.Control.call(this, {
+        element: element,
+        target: options.target
+    });
+};
+ol.inherits(geolocateControl, ol.control.Control);"""
+    else:
+        return ""
+
+
+def geolocateStyle(geolocate):
+    if geolocate:
+        return """
+        <style>
+        .geolocate {
+            top: 65px;
+            left: .5em;
+        }
+        .ol-touch .geolocate {
+            top: 80px;
+        }
+        </style>"""
     else:
         return ""
 

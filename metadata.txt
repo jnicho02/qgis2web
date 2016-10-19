@@ -13,7 +13,7 @@ name=qgis2web
 qgisMinimumVersion=2.8
 description=Export to an OpenLayers 3/Leaflet webmap
 about=qgis2web generates a web map from your current QGIS project, either as OpenLayers3 or Leaflet. It replicates as many aspects of the project as it can, including layers, styles (including categorized and graduated), and extent. No server-side software required.
-version=1.9.2
+version=1.19.0
 author=Tom Chadwin, Riccardo Klinger, Victor Olaya
 email=tom.chadwin@nnpa.org.uk
 
@@ -22,7 +22,23 @@ email=tom.chadwin@nnpa.org.uk
 # Optional items:
 
 # Uncomment the following line and add your changelog entries:
-changelog=2016/06/13 1.9.2 Leaflet decimal labels
+changelog=2016/10/05 1.19.0 Leaflet SVG zIndex, OL3 WMS, Leaflet WFS visibility, remove redundant Leaflet layer control, OL3 safeName(), reset default Leaflet tooltip style, crash on plugin reload
+    2016/10/03 1.19.0-beta1 Upgrade to Leaflet 1.0.0, fix Leaflet layer order
+    2016/09/23 1.18.0 Point marker rotation
+    2016/09/20 1.17.0 Scale-dependent labels, Leaflet categorized vector field marker error, correct metadata changelog
+    2016/09/16 1.16.1 Improved heatmaps
+    2016/09/15 1.16.0 Heatmaps
+    2016/09/14 1.15.1 Only include checked layers in layer search dropdown
+    2016/09/13 1.15.0 Search layer properties (thanks @ThomasG77 and @boesiii!), Leaflet categorized SVG error, update README, update wiki
+    2016/08/25 1.14.1 Fixed save settings to project
+    2016/08/23 1.14.0 Leaflet handle invalid JS field names, remove hidden fields from popup label UI, scale bar from QGIS, handle features without geometry, allow hidden fields as labels, allow hidden fields for cat/grad layers, save popup label settings
+    2016/07/28 1.13.1 Leaflet categorized/graduated with special characters in field name
+    2016/07/26 1.13.0 Geolocate on click, MapQuest removed, metadata typo
+    2016/07/20 1.12.1 WFS in 2.16+, WFS duplicate popup code, updated README 
+    2016/07/15 1.12.0 OS X test environment (thanks, @jnicho02!), label formatting, hidden fields, remove "Delete unused fields", OL3 CDN to 3.17.1, empty popups, OL3 popup labels on hover, Leaflet simple line style, cubic resampling, raster export fallback
+    2016/07/06 1.11.0 Images overflow popups, relax layer name (thanks, @lucacasagrande!), popup labels format, remove Mapquest basemaps, OL to 3.17.1, correct fieldAliases (thanks, @nboisteault!), Leaflet point size, label format, wiki created, README updated
+    2016/06/28 1.10.0-FOSS4GUK2016 Popup images (thanks, @GeoSpark!), stylized rasters (thanks, @lucacasagrande!), OL3 field aliases, OL3 measure/highlight (thanks, @walkermatt!), OL3 SVGs, QGIS minimum version to 2.8, test output improved (thanks, @walkermatt!), raster tests, skip raster tests for Travis nightly
+    2016/06/13 1.9.2 Leaflet decimal labels
     2016/06/02 1.9.1 Categorized/graduated 2.5d error
     2016/05/25 1.9.0 Upgrade OL3 to 3.16.0, fix Leaflet disappearing points
     2016/05/16 1.8.1 Leaflet single polygon border width (thanks, @boesiii!), integrate Coveralls, say "no" to jQuery in README dev section
@@ -117,7 +133,7 @@ changelog=2016/06/13 1.9.2 Leaflet decimal labels
 # tags are comma separated with spaces allowed
 tags=web,webmap,webmaps,Leaflet,OpenLayers,OL3,HTML,Javascript,CSS,export
 
-homepage=https://github.com/tomchadwin/qgis2web
+homepage=https://github.com/tomchadwin/qgis2web/wiki
 tracker=https://github.com/tomchadwin/qgis2web/issues
 repository=https://github.com/tomchadwin/qgis2web
 icon=qgis2web.png

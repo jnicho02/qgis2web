@@ -8,13 +8,13 @@
         <meta name="apple-mobile-web-app-capable" content="yes">
         <link rel="stylesheet" href="css/leaflet.css" />
         <link rel="stylesheet" type="text/css" href="css/qgis2web.css">
-        <link rel="stylesheet" href="css/label.css" />
         <link rel="stylesheet" href="css/MarkerCluster.css" />
         <link rel="stylesheet" href="css/MarkerCluster.Default.css" />
         <script src="js/leaflet.js"></script>
+        <script src="js/leaflet-heat.js"></script>
+        <script src="js/leaflet.rotatedMarker.js"></script>
         <script src="js/OSMBuildings-Leaflet.js"></script>
         <script src="js/leaflet-hash.js"></script>
-        <script src="js/label.js"></script>
         <script src="js/Autolinker.min.js"></script>
         <script src="js/leaflet.markercluster.js"></script>
         <style>
@@ -44,29 +44,28 @@
         var feature_group = new L.featureGroup([]);
         var bounds_group = new L.featureGroup([]);
         var raster_group = new L.LayerGroup([]);
-        var initialOrder = new Array();
-        var layerOrder = new Array();
-        function stackLayers() {
-            for (index = 0; index < initialOrder.length; index++) {
-                map.removeLayer(initialOrder[index]);
-                map.addLayer(initialOrder[index]);
-            }
+        function setBounds() {
             if (bounds_group.getLayers().length) {
                 map.fitBounds(bounds_group.getBounds());
             }
         }
-        function restackLayers() {
-            for (index = 0; index < layerOrder.length; index++) {
-                layerOrder[index].bringToFront();
-            }
+        function geoJson2heat(geojson, weight) {
+          return geojson.features.map(function(feature) {
+            return [
+              feature.geometry.coordinates[1],
+              feature.geometry.coordinates[0],
+              feature.properties[weight]
+            ];
+          });
         }
-        layerControl = L.control.layers({},{},{collapsed:false});
         function pop_polygon0(feature, layer) {
+            var popupContent = '<table><tr><td colspan="2">' + (feature.properties['desiguid'] !== null ? Autolinker.link(String(feature.properties['desiguid'])) : '') + '</td></tr><tr><td colspan="2">' + (feature.properties['areaname'] !== null ? Autolinker.link(String(feature.properties['areaname'])) : '') + '</td></tr><tr><td colspan="2">' + (feature.properties['statusdate'] !== null ? Autolinker.link(String(feature.properties['statusdate'])) : '') + '</td></tr><tr><td colspan="2">' + (feature.properties['parish'] !== null ? Autolinker.link(String(feature.properties['parish'])) : '') + '</td></tr><tr><td colspan="2">' + (feature.properties['district'] !== null ? Autolinker.link(String(feature.properties['district'])) : '') + '</td></tr><tr><td colspan="2">' + (feature.properties['source'] !== null ? Autolinker.link(String(feature.properties['source'])) : '') + '</td></tr><tr><td colspan="2">' + (feature.properties['created'] !== null ? Autolinker.link(String(feature.properties['created'])) : '') + '</td></tr><tr><td colspan="2">' + (feature.properties['amended'] !== null ? Autolinker.link(String(feature.properties['amended'])) : '') + '</td></tr><tr><td colspan="2">' + (feature.properties['area_ha'] !== null ? Autolinker.link(String(feature.properties['area_ha'])) : '') + '</td></tr><tr><td colspan="2">' + (feature.properties['xgcreated'] !== null ? Autolinker.link(String(feature.properties['xgcreated'])) : '') + '</td></tr><tr><td colspan="2">' + (feature.properties['xgedited'] !== null ? Autolinker.link(String(feature.properties['xgedited'])) : '') + '</td></tr></table>';
+            layer.bindPopup(popupContent);
         }
 
         function doStylepolygon0(feature) {
-        if (feature.properties.area_ha >= 0.0 &&
-                feature.properties.area_ha <= 64.24) {
+        if (feature.properties['area_ha'] >= 0.0 &&
+                feature.properties['area_ha'] <= 64.24) {
 
             return {
                 color: '#000000',
@@ -79,8 +78,8 @@
                 fillOpacity: '1.0',
             }
         }
-        if (feature.properties.area_ha >= 64.24 &&
-                feature.properties.area_ha <= 128.48) {
+        if (feature.properties['area_ha'] >= 64.24 &&
+                feature.properties['area_ha'] <= 128.48) {
 
             return {
                 color: '#000000',
@@ -93,8 +92,8 @@
                 fillOpacity: '1.0',
             }
         }
-        if (feature.properties.area_ha >= 128.48 &&
-                feature.properties.area_ha <= 192.72) {
+        if (feature.properties['area_ha'] >= 128.48 &&
+                feature.properties['area_ha'] <= 192.72) {
 
             return {
                 color: '#000000',
@@ -107,8 +106,8 @@
                 fillOpacity: '1.0',
             }
         }
-        if (feature.properties.area_ha >= 192.72 &&
-                feature.properties.area_ha <= 256.96) {
+        if (feature.properties['area_ha'] >= 192.72 &&
+                feature.properties['area_ha'] <= 256.96) {
 
             return {
                 color: '#000000',
@@ -121,8 +120,8 @@
                 fillOpacity: '1.0',
             }
         }
-        if (feature.properties.area_ha >= 256.96 &&
-                feature.properties.area_ha <= 321.2) {
+        if (feature.properties['area_ha'] >= 256.96 &&
+                feature.properties['area_ha'] <= 321.2) {
 
             return {
                 color: '#000000',
@@ -136,26 +135,22 @@
             }
         }
         }
+        map.createPane('pane_polygon0');
+        map.getPane('pane_polygon0').style.zIndex = 601;
         var json_polygon0JSON;
         json_polygon0JSON = L.geoJson(null, {
         style: doStylepolygon0,
-        onEachFeature: function (feature, layer) {
-        },
+            pane: 'pane_polygon0',
             onEachFeature: pop_polygon0
         });
-        layerOrder[layerOrder.length] = json_polygon0JSON;
         feature_group.addLayer(json_polygon0JSON);
-        layerControl.addOverlay(json_polygon0JSON, 'polygon0');
         function getpolygon0Json(geojson) {
             json_polygon0JSON.addData(geojson);
-            stackLayers();
         };
         bounds_group.addLayer(json_polygon0JSON);
-        initialOrder[initialOrder.length] = json_polygon0JSON;
         feature_group.addLayer(json_polygon0JSON);
         raster_group.addTo(map);
         feature_group.addTo(map);
-        map.on('overlayadd', restackLayers);
         </script>
         <script src='http://maps.nationalparks.gov.uk/geoserver/wfs?SERVICE=WFS&VERSION=1.0.0&REQUEST=GetFeature&TYPENAME=yorkshire_dales:ydnpa_conservationareas&SRSNAME=EPSG:4326&outputFormat=text%2Fjavascript&format_options=callback%3Agetpolygon0Json'></script>
     </body>

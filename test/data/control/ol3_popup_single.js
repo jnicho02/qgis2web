@@ -99,7 +99,7 @@ var onPointerMove = function(evt) {
             popupText = '<table>';
             for (var i=0; i<currentFeatureKeys.length; i++) {
                 if (currentFeatureKeys[i] != 'geometry') {
-                    popupField = '<th>' + currentFeatureKeys[i] + ':</th>'
+                    popupField = '<th>' + layer.get('fieldsAliases')[currentFeatureKeys[i]] + ':</th>'
                     popupField += '<td>'+ currentFeature.get(currentFeatureKeys[i]) + '</td>';
                     popupText = popupText + '<tr>' + popupField + '</tr>';
                 }
@@ -189,8 +189,12 @@ var onSingleClick = function(evt) {
             popupText = '<table>';
             for (var i=0; i<currentFeatureKeys.length; i++) {
                 if (currentFeatureKeys[i] != 'geometry') {
-                    popupField = '<th>' + currentFeatureKeys[i] + ':</th><td>'
-                    popupField += (currentFeature.get(currentFeatureKeys[i]) != null ? Autolinker.link(String(currentFeature.get(currentFeatureKeys[i]))) + '</td>' : '');
+                    popupField = '<th>' + layer.get('fieldAliases')[currentFeatureKeys[i]] + ':</th><td>'
+                    if (layer.get('fieldImages')[currentFeatureKeys[i]] != "Photo") {
+                        popupField += (currentFeature.get(currentFeatureKeys[i]) != null ? Autolinker.link(String(currentFeature.get(currentFeatureKeys[i]))) + '</td>' : '');
+                    } else {
+                        popupField += (currentFeature.get(currentFeatureKeys[i]) != null ? '<img src="images/' + currentFeature.get(currentFeatureKeys[i]).replace(/[\\\/:]/g, '_').trim()  + '" /></td>' : '');
+                    }
                     popupText = popupText + '<tr>' + popupField + '</tr>';
                 }
             }

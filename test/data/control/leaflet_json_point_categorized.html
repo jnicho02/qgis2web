@@ -8,13 +8,13 @@
         <meta name="apple-mobile-web-app-capable" content="yes">
         <link rel="stylesheet" href="css/leaflet.css" />
         <link rel="stylesheet" type="text/css" href="css/qgis2web.css">
-        <link rel="stylesheet" href="css/label.css" />
         <link rel="stylesheet" href="css/MarkerCluster.css" />
         <link rel="stylesheet" href="css/MarkerCluster.Default.css" />
         <script src="js/leaflet.js"></script>
+        <script src="js/leaflet-heat.js"></script>
+        <script src="js/leaflet.rotatedMarker.js"></script>
         <script src="js/OSMBuildings-Leaflet.js"></script>
         <script src="js/leaflet-hash.js"></script>
-        <script src="js/label.js"></script>
         <script src="js/Autolinker.min.js"></script>
         <script src="js/leaflet.markercluster.js"></script>
         <style>
@@ -45,31 +45,30 @@
         var feature_group = new L.featureGroup([]);
         var bounds_group = new L.featureGroup([]);
         var raster_group = new L.LayerGroup([]);
-        var initialOrder = new Array();
-        var layerOrder = new Array();
-        function stackLayers() {
-            for (index = 0; index < initialOrder.length; index++) {
-                map.removeLayer(initialOrder[index]);
-                map.addLayer(initialOrder[index]);
-            }
+        function setBounds() {
             if (bounds_group.getLayers().length) {
                 map.fitBounds(bounds_group.getBounds());
             }
         }
-        function restackLayers() {
-            for (index = 0; index < layerOrder.length; index++) {
-                layerOrder[index].bringToFront();
-            }
+        function geoJson2heat(geojson, weight) {
+          return geojson.features.map(function(feature) {
+            return [
+              feature.geometry.coordinates[1],
+              feature.geometry.coordinates[0],
+              feature.properties[weight]
+            ];
+          });
         }
-        layerControl = L.control.layers({},{},{collapsed:false});
         function pop_airports0(feature, layer) {
+            var popupContent = '<table><tr><td colspan="2">' + (feature.properties['ID'] !== null ? Autolinker.link(String(feature.properties['ID'])) : '') + '</td></tr><tr><td colspan="2">' + (feature.properties['fk_region'] !== null ? Autolinker.link(String(feature.properties['fk_region'])) : '') + '</td></tr><tr><td colspan="2">' + (feature.properties['ELEV'] !== null ? Autolinker.link(String(feature.properties['ELEV'])) : '') + '</td></tr><tr><td colspan="2">' + (feature.properties['NAME'] !== null ? Autolinker.link(String(feature.properties['NAME'])) : '') + '</td></tr><tr><td colspan="2">' + (feature.properties['USE'] !== null ? Autolinker.link(String(feature.properties['USE'])) : '') + '</td></tr></table>';
+            layer.bindPopup(popupContent);
         }
 
         function doStyleairports0(feature) {
-			switch (feature.properties.USE) {
+			switch (feature.properties['USE']) {
                 case 'Civilian/Public':
                     return {
-                    radius: 2.0,
+                    radius: 4.0,
                     fillColor: '#de1ac1',
                     color: '#000000',
                     weight: 0.0,
@@ -80,7 +79,7 @@
                 break;
                 case 'Joint Military/Civilian':
                     return {
-                    radius: 2.0,
+                    radius: 4.0,
                     fillColor: '#7075ce',
                     color: '#000000',
                     weight: 0.0,
@@ -91,7 +90,7 @@
                 break;
                 case 'Military':
                     return {
-                    radius: 2.0,
+                    radius: 4.0,
                     fillColor: '#d7865d',
                     color: '#000000',
                     weight: 0.0,
@@ -102,7 +101,7 @@
                 break;
                 case 'Other':
                     return {
-                    radius: 2.0,
+                    radius: 4.0,
                     fillColor: '#7ade29',
                     color: '#000000',
                     weight: 0.0,
@@ -113,7 +112,7 @@
                 break;
                 default:
                     return {
-                    radius: 2.0,
+                    radius: 4.0,
                     fillColor: '#56dab9',
                     color: '#000000',
                     weight: 0.0,
@@ -124,21 +123,20 @@
                 break;
             }
         }
+        map.createPane('pane_airports0');
+        map.getPane('pane_airports0').style.zIndex = 601;
         var json_airports0JSON = new L.geoJson(json_airports0, {
+            pane: 'pane_airports0',
             onEachFeature: pop_airports0,
             pointToLayer: function (feature, latlng) {
                 return L.circleMarker(latlng, doStyleairports0(feature))
             }
         });
-        layerOrder[layerOrder.length] = json_airports0JSON;
-
         bounds_group.addLayer(json_airports0JSON);
-        initialOrder[initialOrder.length] = json_airports0JSON;
         feature_group.addLayer(json_airports0JSON);
         raster_group.addTo(map);
         feature_group.addTo(map);
-        stackLayers();
-        map.on('overlayadd', restackLayers);
+        setBounds();
         </script>
     </body>
 </html>

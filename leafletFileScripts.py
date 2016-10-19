@@ -8,15 +8,16 @@ from utils import replaceInTemplate
 
 
 def writeFoldersAndFiles(pluginDir, outputProjectFileName, cluster_set,
-                         measure, matchCRS, canvas, mapLibLocation, locate):
+                         measure, matchCRS, layerSearch, canvas,
+                         mapLibLocation, locate):
     jsStore = os.path.join(outputProjectFileName, 'js')
     os.makedirs(jsStore)
     jsStore += os.sep
     jsDir = pluginDir + os.sep + 'js' + os.sep
     dataStore = os.path.join(outputProjectFileName, 'data')
     os.makedirs(dataStore)
+    imageDir = pluginDir + os.sep + 'images' + os.sep
     imageStore = os.path.join(outputProjectFileName, 'images')
-    os.makedirs(imageStore)
     legendStore = os.path.join(outputProjectFileName, 'legend')
     os.makedirs(legendStore)
     cssStore = os.path.join(outputProjectFileName, 'css')
@@ -28,17 +29,20 @@ def writeFoldersAndFiles(pluginDir, outputProjectFileName, cluster_set,
     if mapLibLocation == "Local":
         shutil.copyfile(jsDir + 'leaflet.js', jsStore + 'leaflet.js')
         shutil.copyfile(cssDir + 'leaflet.css', cssStore + 'leaflet.css')
-        if locate:
-            os.makedirs(os.path.join(jsStore, "images"))
-            shutil.copyfile(jsDir + 'images/marker-icon.png',
-                            jsStore + 'images/marker-icon.png')
-            shutil.copyfile(jsDir + 'images/marker-shadow.png',
-                            jsStore + 'images/marker-shadow.png')
+    if locate:
+        shutil.copyfile(jsDir + 'L.Control.Locate.min.js',
+                        jsStore + 'L.Control.Locate.min.js')
+        shutil.copyfile(cssDir + 'L.Control.Locate.min.css',
+                        cssStore + 'L.Control.Locate.min.css')
     shutil.copyfile(jsDir + 'Autolinker.min.js',
                     jsStore + 'Autolinker.min.js')
     shutil.copyfile(jsDir + 'OSMBuildings-Leaflet.js',
                     jsStore + 'OSMBuildings-Leaflet.js')
+    shutil.copyfile(jsDir + 'leaflet-heat.js',
+                    jsStore + 'leaflet-heat.js')
     shutil.copyfile(jsDir + 'leaflet-hash.js', jsStore + 'leaflet-hash.js')
+    shutil.copyfile(jsDir + 'leaflet.rotatedMarker.js',
+                    jsStore + 'leaflet.rotatedMarker.js')
     if len(cluster_set):
         shutil.copyfile(jsDir + 'leaflet.markercluster.js',
                         jsStore + 'leaflet.markercluster.js')
@@ -46,8 +50,12 @@ def writeFoldersAndFiles(pluginDir, outputProjectFileName, cluster_set,
                         cssStore + 'MarkerCluster.css')
         shutil.copyfile(cssDir + 'MarkerCluster.Default.css',
                         cssStore + 'MarkerCluster.Default.css')
-    shutil.copyfile(jsDir + 'label.js', jsStore + 'label.js')
-    shutil.copyfile(cssDir + 'label.css', cssStore + 'label.css')
+    if layerSearch != "None":
+        shutil.copyfile(jsDir + 'leaflet-search.js',
+                        jsStore + 'leaflet-search.js')
+        shutil.copyfile(cssDir + 'leaflet-search.css',
+                        cssStore + 'leaflet-search.css')
+        shutil.copytree(imageDir, imageStore)
     if measure != "None":
         shutil.copyfile(jsDir + 'leaflet.draw.js',
                         jsStore + 'leaflet.draw.js')
@@ -71,7 +79,8 @@ def writeFoldersAndFiles(pluginDir, outputProjectFileName, cluster_set,
 
 
 def writeHTMLstart(outputIndex, webpage_name, cluster_set, address, measure,
-                   matchCRS, canvas, mapLibLocation, qgis2webJS, template):
+                   matchCRS, layerSearch, canvas, mapLibLocation, locate,
+                   qgis2webJS, template):
     if webpage_name == "":
         pass
     else:
@@ -81,15 +90,24 @@ def writeHTMLstart(outputIndex, webpage_name, cluster_set, address, measure,
         jsAddress = '<script src="js/leaflet.js"></script>'
     else:
         cssAddress = '<link rel="stylesheet" href='
-        cssAddress += '"http://cdn.leafletjs.com/leaflet/v0.7.7/'
-        cssAddress += 'leaflet.css" />'
+        cssAddress += '"http://unpkg.com/leaflet@1.0.0/dist/leaflet.css" />'
         jsAddress = '<script src="http://'
-        jsAddress += 'cdn.leafletjs.com/leaflet/v0.7.7/leaflet.js"></script>'
+        jsAddress += 'unpkg.com/leaflet@1.0.0/dist/leaflet.js"></script>'
+    if locate:
+        cssAddress += '<link rel="stylesheet" '
+        cssAddress += 'href="http://maxcdn.bootstrapcdn.com/font-awesome/'
+        cssAddress += '4.6.1/css/font-awesome.min.css">'
+        cssAddress += '<link rel="stylesheet" '
+        cssAddress += 'href="css/L.Control.Locate.min.css" />'
+        jsAddress += '<script src="js/L.Control.Locate.min.js"></script>'
+    jsAddress += """
+        <script src="js/leaflet-heat.js"></script>"""
+    jsAddress += """
+        <script src="js/leaflet.rotatedMarker.js"></script>"""
     jsAddress += """
         <script src="js/OSMBuildings-Leaflet.js"></script>"""
     extracss = '<link rel="stylesheet" type="text/css" '
-    extracss += """href="css/qgis2web.css">
-        <link rel="stylesheet" href="css/label.css" />"""
+    extracss += """href="css/qgis2web.css">"""
     if len(cluster_set):
         clusterCSS = '<link rel="stylesheet" '
         clusterCSS += """href="css/MarkerCluster.css" />
@@ -99,6 +117,13 @@ def writeHTMLstart(outputIndex, webpage_name, cluster_set, address, measure,
     else:
         clusterCSS = ""
         clusterJS = ""
+    if layerSearch != "None":
+        layerSearchCSS = '<link rel="stylesheet" '
+        layerSearchCSS += 'href="css/leaflet-search.css" />'
+        layerSearchJS = '<script src="js/leaflet-search.js"></script>'
+    else:
+        layerSearchCSS = ""
+        layerSearchJS = ""
     if address:
         addressCSS = """
         <link rel="stylesheet" href="""
@@ -121,7 +146,6 @@ def writeHTMLstart(outputIndex, webpage_name, cluster_set, address, measure,
         measureCSS = ""
         measureJS = ""
     extraJS = """<script src="js/leaflet-hash.js"></script>
-        <script src="js/label.js"></script>
         <script src="js/Autolinker.min.js"></script>"""
     if (matchCRS and
             canvas.mapRenderer().destinationCrs().authid() != 'EPSG:4326'):
@@ -138,6 +162,8 @@ def writeHTMLstart(outputIndex, webpage_name, cluster_set, address, measure,
               "@JSADDRESS@": jsAddress,
               "@LEAFLET_CLUSTERCSS@": clusterCSS,
               "@LEAFLET_CLUSTERJS@": clusterJS,
+              "@LEAFLET_LAYERSEARCHCSS@": layerSearchCSS,
+              "@LEAFLET_LAYERSEARCHJS@": layerSearchJS,
               "@LEAFLET_ADDRESSCSS@": addressCSS,
               "@LEAFLET_MEASURECSS@": measureCSS,
               "@LEAFLET_EXTRAJS@": extraJS,
@@ -190,6 +216,17 @@ th {
 }
 .leaflet-container {
     background: #fff;
+}
+.leaflet-popup-content {
+    width:auto !important;
+}
+.leaflet-tooltip {
+    background: none;
+    box-shadow: none;
+    border: none;
+}
+.leaflet-tooltip-left:before, .leaflet-tooltip-right:before {
+    border: 0px;
 }"""
         f_css.write(text)
         f_css.close()
