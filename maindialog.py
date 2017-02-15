@@ -26,8 +26,14 @@ import webbrowser
 import qgis  # pylint: disable=unused-import
 # noinspection PyUnresolvedReferences
 from PyQt4.QtCore import *
+from PyQt4.QtCore import (QSettings,
+                          QByteArray)
 from PyQt4.QtGui import *
-from PyQt4.QtWebKit import *
+try:
+    from PyQt4.QtWebKit import *
+    webkit_available = True
+except ImportError:
+    webkit_available = False
 from PyQt4 import QtGui
 import traceback
 import logging
@@ -40,62 +46,78 @@ from leafletWriter import *
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-projectInstance = QgsProject.instance()
-mainDlg = None
-
 
 class MainDialog(QDialog, Ui_MainDialog):
     """The main dialog of QGIS2Web plugin."""
     items = {}
 
     def __init__(self, iface):
-        global mainDlg
         QDialog.__init__(self)
         self.setupUi(self)
         self.iface = iface
-        mainDlg = self
-        self.resize(QSettings().value("qgis2web/size", QSize(994, 647)))
-        self.move(QSettings().value("qgis2web/pos", QPoint(50, 50)))
+        stgs = QSettings()
+
+        self.restoreGeometry(stgs.value("qgis2web/MainDialogGeometry",
+                                        QByteArray(), type=QByteArray))
+
+        if stgs.value("qgis2web/previewOnStartup", Qt.Checked) == Qt.Checked:
+            self.previewOnStartup.setCheckState(Qt.Checked)
+        else:
+            self.previewOnStartup.setCheckState(Qt.Unchecked)
         self.paramsTreeOL.setSelectionMode(QAbstractItemView.SingleSelection)
-        webview = self.preview.page()
-        webview.setNetworkAccessManager(QgsNetworkAccessManager.instance())
+        if webkit_available:
+            widget = QWebView()
+            self.preview = widget
+            webview = self.preview.page()
+            webview.setNetworkAccessManager(QgsNetworkAccessManager.instance())
+            self.preview.settings().setAttribute(
+                QWebSettings.DeveloperExtrasEnabled, True)
+        else:
+            widget = QTextBrowser()
+            widget.setText(self.tr('Preview is not available since QtWebKit '
+                                   'dependency is missing on your system'))
+        self.right_layout.insertWidget(0, widget)
         self.populateConfigParams(self)
         self.populate_layers_and_groups(self)
         self.populateLayerSearch()
         self.populateBasemaps()
         self.selectMapFormat()
         self.toggleOptions()
-        self.previewMap()
+        if webkit_available:
+            if self.previewOnStartup.checkState() == Qt.Checked:
+                self.previewMap()
+            self.buttonPreview.clicked.connect(self.previewMap)
+        else:
+            self.buttonPreview.setDisabled(True)
         self.layersTree.model().dataChanged.connect(self.populateLayerSearch)
         self.paramsTreeOL.itemClicked.connect(self.changeSetting)
         self.ol3.clicked.connect(self.changeFormat)
         self.leaflet.clicked.connect(self.changeFormat)
-        self.buttonPreview.clicked.connect(self.previewMap)
         self.buttonExport.clicked.connect(self.saveMap)
         readme = os.path.join(os.path.dirname(os.path.realpath(__file__)),
                               "README.md")
         helpText = os.path.join(os.path.dirname(os.path.realpath(__file__)),
                                 "helpFile.md")
         lines = open(readme, 'r').readlines()
-        lines[0] = "This is the new first line \n"
         with open(helpText, 'w') as helpFile:
             for ct, line in enumerate(lines):
-                if ct > 2:
+                if ct > 4:
                     helpFile.write(line)
             helpFile.close()
         self.helpField.setSource(QUrl.fromLocalFile(helpText))
-        self.devConsole = QWebInspector(self.verticalLayoutWidget_2)
-        self.devConsole.setFixedHeight(0)
-        self.devConsole.setObjectName("devConsole")
-        self.devConsole.setPage(self.preview.page())
-        self.verticalLayout_2.insertWidget(1, self.devConsole)
+        if webkit_available:
+            self.devConsole = QWebInspector(self.verticalLayoutWidget_2)
+            self.devConsole.setFixedHeight(0)
+            self.devConsole.setObjectName("devConsole")
+            self.devConsole.setPage(self.preview.page())
+            self.right_layout.insertWidget(1, self.devConsole)
         self.filter = devToggleFilter()
         self.installEventFilter(self.filter)
+        self.setModal(False)
 
     def changeFormat(self):
-        global projectInstance
-        projectInstance.writeEntry("qgis2web", "mapFormat",
-                                   self.mapFormat.checkedButton().text())
+        QgsProject.instance().writeEntry("qgis2web", "mapFormat",
+                                         self.mapFormat.checkedButton().text())
         self.previewMap()
         self.toggleOptions()
 
@@ -131,6 +153,8 @@ class MainDialog(QDialog, Ui_MainDialog):
                         treeOption.setDisabled(False)
 
     def previewMap(self):
+        if not webkit_available:
+            return
         try:
             if self.mapFormat.checkedButton().text() == "OpenLayers 3":
                 MainDialog.previewOL3(self)
@@ -163,17 +187,16 @@ class MainDialog(QDialog, Ui_MainDialog):
                 paramItem.setText(1, folder)
 
     def saveSettings(self, paramItem, col):
-        global projectInstance
-        projectInstance.removeEntry("qgis2web",
-                                    paramItem.name.replace(" ", ""))
+        QgsProject.instance().removeEntry("qgis2web",
+                                          paramItem.name.replace(" ", ""))
         if isinstance(paramItem._value, bool):
-            projectInstance.writeEntry("qgis2web", paramItem.name.replace(" ",
-                                                                          ""),
-                                       paramItem.checkState(col))
+            QgsProject.instance().writeEntry("qgis2web",
+                                             paramItem.name.replace(" ", ""),
+                                             paramItem.checkState(col))
         else:
-            projectInstance.writeEntry("qgis2web", paramItem.name.replace(" ",
-                                                                          ""),
-                                       paramItem.text(col))
+            QgsProject.instance().writeEntry("qgis2web",
+                                             paramItem.name.replace(" ", ""),
+                                             paramItem.text(col))
         if paramItem.name == "Match project CRS":
             baseLayer = self.basemaps
             if paramItem.checkState(col):
@@ -183,8 +206,7 @@ class MainDialog(QDialog, Ui_MainDialog):
 
     def populate_layers_and_groups(self, dlg):
         """Populate layers on QGIS into our layers and group tree view."""
-        global projectInstance
-        root_node = projectInstance.layerTreeRoot()
+        root_node = QgsProject.instance().layerTreeRoot()
         tree_groups = []
         tree_layers = root_node.findLayers()
         self.layers_item = QTreeWidgetItem()
@@ -225,16 +247,15 @@ class MainDialog(QDialog, Ui_MainDialog):
                 item.setExpanded(False)
 
     def populateLayerSearch(self):
-        global mainDlg
-        layerSearch = mainDlg.paramsTreeOL.itemWidget(
-                mainDlg.paramsTreeOL.findItems("Layer search",
-                                               (Qt.MatchExactly |
-                                                Qt.MatchRecursive))[0], 1)
+        layerSearch = self.paramsTreeOL.itemWidget(
+                self.paramsTreeOL.findItems("Layer search",
+                                            (Qt.MatchExactly |
+                                             Qt.MatchRecursive))[0], 1)
         layerSearch.clear()
         layerSearch.addItem("None")
         (layers, groups, popup, visible,
          json, cluster) = self.getLayersAndGroups()
-        for layer in reversed(layers):
+        for count, layer in enumerate(layers):
             if layer.type() == layer.VectorLayer:
                 options = []
                 fields = layer.pendingFields()
@@ -248,47 +269,47 @@ class MainDialog(QDialog, Ui_MainDialog):
                     if (editorWidget == QgsVectorLayer.Hidden or
                             editorWidget == 'Hidden'):
                         continue
-                    options.append(f.name())
+                    options.append(unicode(f.name()))
                 for option in options:
-                    layerSearch.addItem(layer.name() + ": " + option)
+                    displayStr = unicode(layer.name() + ": " + option)
+                    layerSearch.insertItem(0, displayStr)
+                    sln = utils.safeName(layer.name())
+                    layerSearch.setItemData(layerSearch.findText(displayStr),
+                                            sln + unicode(count))
 
     def populateConfigParams(self, dlg):
-        global projectInstance
         self.items = defaultdict(dict)
+        project = QgsProject.instance()
         for group, settings in paramsOL.iteritems():
             item = QTreeWidgetItem()
             item.setText(0, group)
             for param, value in settings.iteritems():
                 isTuple = False
                 if isinstance(value, bool):
-                    value = projectInstance.readBoolEntry("qgis2web",
-                                                          param.replace(" ",
-                                                                        ""))[0]
+                    value = project.readBoolEntry("qgis2web",
+                                                  param.replace(" ", ""))[0]
                 elif isinstance(value, int):
-                    if projectInstance.readNumEntry("qgis2web",
-                                                    param.replace(" ",
-                                                                  ""))[0] != 0:
-                        value = projectInstance.readNumEntry(
-                                "qgis2web", param.replace(" ", ""))[0]
+                    if project.readNumEntry(
+                            "qgis2web", param.replace(" ", ""))[0] != 0:
+                        value = project.readNumEntry("qgis2web",
+                                                     param.replace(" ", ""))[0]
                 elif isinstance(value, tuple):
                     isTuple = True
-                    if projectInstance.readNumEntry(
-                            "qgis2web", param.replace(" ", ""))[0] != 0:
-                        comboSelection = projectInstance.readNumEntry(
+                    if project.readNumEntry("qgis2web",
+                                            param.replace(" ", ""))[0] != 0:
+                        comboSelection = project.readNumEntry(
                             "qgis2web", param.replace(" ", ""))[0]
                     elif param == "Max zoom level":
                         comboSelection = 27
                     else:
                         comboSelection = 0
                 else:
-                    if (isinstance(projectInstance.readEntry("qgis2web",
+                    if (isinstance(project.readEntry("qgis2web",
                                    param.replace(" ", ""))[0], basestring) and
-                            projectInstance.readEntry(
-                                    "qgis2web",
-                                    param.replace(" ", ""))[0] != ""):
-                        value = projectInstance.readEntry("qgis2web",
-                                                          param.replace(" ",
-                                                                        ""))[0]
+                        project.readEntry("qgis2web",
+                                          param.replace(" ", ""))[0] != ""):
+                        value = project.readEntry(
+                            "qgis2web", param.replace(" ", ""))[0]
                 subitem = TreeSettingItem(item, self.paramsTreeOL,
                                           param, value, dlg)
                 if isTuple:
@@ -316,7 +337,7 @@ class MainDialog(QDialog, Ui_MainDialog):
             for key in baselayers[i]:
                 attrFields.append(key)
         self.basemaps.addItems(attrFields)
-        basemaps = projectInstance.readEntry("qgis2web", "Basemaps")[0]
+        basemaps = QgsProject.instance().readEntry("qgis2web", "Basemaps")[0]
         for basemap in basemaps.split(","):
             try:
                 self.basemaps.findItems(basemap,
@@ -325,8 +346,8 @@ class MainDialog(QDialog, Ui_MainDialog):
                 pass
 
     def selectMapFormat(self):
-        global projectInstance
-        if projectInstance.readEntry("qgis2web", "mapFormat")[0] == "Leaflet":
+        if QgsProject.instance().readEntry("qgis2web",
+                                           "mapFormat")[0] == "Leaflet":
             self.ol3.setChecked(False)
             self.leaflet.setChecked(True)
 
@@ -375,21 +396,28 @@ class MainDialog(QDialog, Ui_MainDialog):
         for group, settings in self.items.iteritems():
             for param, item in settings.iteritems():
                 parameters[group][param] = item.value()
+                if param == "Layer search":
+                    searchWidget = self.paramsTreeOL.itemWidget(
+                        self.paramsTreeOL.findItems(param, (
+                                Qt.MatchExactly |
+                                Qt.MatchRecursive))[0], 1)
+                    parameters["Appearance"]["Search layer"] = (
+                        searchWidget.itemData(searchWidget.currentIndex()))
         basemaps = self.basemaps.selectedItems()
         parameters["Appearance"]["Base layer"] = basemaps
         return parameters
 
     def saveParameters(self):
-        global projectInstance
-        projectInstance.removeEntry("qgis2web", "/")
+        QgsProject.instance().removeEntry("qgis2web", "/")
         parameters = defaultdict(dict)
         for group, settings in self.items.iteritems():
             for param, item in settings.iteritems():
-                projectInstance.writeEntry("qgis2web", param.replace(" ", ""),
-                                           item.setting())
+                QgsProject.instance().writeEntry("qgis2web",
+                                                 param.replace(" ", ""),
+                                                 item.setting())
         basemaps = self.basemaps.selectedItems()
         basemaplist = ",".join(basemap.text() for basemap in basemaps)
-        projectInstance.writeEntry("qgis2web", "Basemaps", basemaplist)
+        QgsProject.instance().writeEntry("qgis2web", "Basemaps", basemaplist)
         return parameters
 
     def getLayersAndGroups(self):
@@ -442,13 +470,18 @@ class MainDialog(QDialog, Ui_MainDialog):
         self.saveParameters()
         (layers, groups, popup, visible,
          json, cluster) = self.getLayersAndGroups()
-        for layer, pop in zip(layers, popup):
+        for layer, pop, vis in zip(layers, popup, visible):
             attrDict = {}
             for attr in pop:
                 attrDict['attr'] = pop[attr]
                 layer.setCustomProperty("qgis2web/popup/" + attr, pop[attr])
-        QSettings().setValue("qgis2web/size", self.size())
-        QSettings().setValue("qgis2web/pos", self.pos())
+                layer.setCustomProperty("qgis2web/Visible", vis)
+
+        QSettings().setValue(
+            "qgis2web/MainDialogGeometry", self.saveGeometry())
+
+        QSettings().setValue("qgis2web/previewOnStartup",
+                             self.previewOnStartup.checkState())
         event.accept()
 
 
@@ -500,13 +533,13 @@ class TreeLayerItem(QTreeWidgetItem):
                                    "layer.png"))
 
     def __init__(self, iface, layer, tree, dlg):
-        global projectInstance
         QTreeWidgetItem.__init__(self)
         self.iface = iface
         self.layer = layer
         self.setText(0, layer.name())
         self.setIcon(0, self.layerIcon)
-        if projectInstance.layerTreeRoot().findLayer(layer.id()).isVisible():
+        project = QgsProject.instance()
+        if project.layerTreeRoot().findLayer(layer.id()).isVisible():
             self.setCheckState(0, Qt.Checked)
         else:
             self.setCheckState(0, Qt.Unchecked)
@@ -543,12 +576,12 @@ class TreeLayerItem(QTreeWidgetItem):
             self.addChild(self.popupItem)
         self.visibleItem = QTreeWidgetItem(self)
         self.visibleCheck = QCheckBox()
-        if layer.customProperty("qgis2web/Visible") == 0:
+        vis = layer.customProperty("qgis2web/Visible", True)
+        if (vis == 0 or unicode(vis).lower() == "false"):
             self.visibleCheck.setChecked(False)
         else:
             self.visibleCheck.setChecked(True)
         self.visibleItem.setText(0, "Visible")
-        self.visibleCheck.stateChanged.connect(self.changeVisible)
         self.addChild(self.visibleItem)
         tree.setItemWidget(self.visibleItem, 1, self.visibleCheck)
         if layer.type() == layer.VectorLayer:
@@ -602,17 +635,11 @@ class TreeLayerItem(QTreeWidgetItem):
         except:
             return False
 
-    def changeVisible(self, isVisible):
-        self.layer.setCustomProperty("qgis2web/Visible", isVisible)
-
     def changeJSON(self, isJSON):
         self.layer.setCustomProperty("qgis2web/Encode to JSON", isJSON)
 
     def changeCluster(self, isCluster):
         self.layer.setCustomProperty("qgis2web/Cluster", isCluster)
-
-    def changeLabel(self, isLabel):
-        self.layer.setCustomProperty("qgis2web/Label", isLabel)
 
 
 class TreeSettingItem(QTreeWidgetItem):

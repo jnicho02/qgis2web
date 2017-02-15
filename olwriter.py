@@ -19,27 +19,31 @@ import codecs
 import os
 import re
 import math
-import time
+from datetime import datetime
 import shutil
 import traceback
 import xml.etree.ElementTree
+from urlparse import parse_qs
 from qgis.core import *
-from utils import exportLayers, safeName, replaceInTemplate, is25d
+from utils import (exportLayers, safeName, replaceInTemplate,
+                   is25d, getRGBAColor, ALL_ATTRIBUTES, BLEND_MODES)
+from exp2js import compile_to_file
 from qgis.utils import iface
 from PyQt4.QtCore import *
 from PyQt4.QtGui import *
 from olScriptStrings import *
-from utils import ALL_ATTRIBUTES
 from basemaps import basemapOL
 
 
 def writeOL(iface, layers, groups, popup, visible,
             json, clustered, settings, folder):
     QApplication.setOverrideCursor(QCursor(Qt.WaitCursor))
-    stamp = time.strftime("%Y_%m_%d-%H_%M_%S")
+    controlCount = 0
+    stamp = datetime.now().strftime("%Y_%m_%d-%H_%M_%S_%f")
     folder = os.path.join(folder, 'qgis2web_' + unicode(stamp))
     imagesFolder = os.path.join(folder, "images")
     QDir().mkpath(imagesFolder)
+    restrictToExtent = settings["Scale/Zoom"]["Restrict to extent"]
     try:
         dst = os.path.join(folder, "resources")
         if not os.path.exists(dst):
@@ -49,11 +53,13 @@ def writeOL(iface, layers, groups, popup, visible,
         matchCRS = settings["Appearance"]["Match project CRS"]
         precision = settings["Data export"]["Precision"]
         optimize = settings["Data export"]["Minify GeoJSON files"]
+        extent = settings["Scale/Zoom"]["Extent"]
         exportLayers(iface, layers, folder, precision,
-                     optimize, popup, json)
+                     optimize, popup, json, restrictToExtent, extent)
         exportStyles(layers, folder, clustered)
         osmb = writeLayersAndGroups(layers, groups, visible, folder, popup,
-                                    settings, json, matchCRS, clustered, iface)
+                                    settings, json, matchCRS, clustered, iface,
+                                    restrictToExtent, extent)
         jsAddress = '<script src="resources/polyfills.js"></script>'
         if settings["Data export"]["Mapping library location"] == "Local":
             cssAddress = """<link rel="stylesheet" """
@@ -62,12 +68,13 @@ def writeOL(iface, layers, groups, popup, visible,
         <script src="./resources/ol.js"></script>"""
         else:
             cssAddress = """<link rel="stylesheet" href="http://"""
-            cssAddress += """openlayers.org/en/v3.18.2/css/ol.css" />"""
+            cssAddress += """openlayers.org/en/v3.20.1/css/ol.css" />"""
             jsAddress += """
-        <script src="http://openlayers.org/en/v3.18.2/"""
+        <script src="http://openlayers.org/en/v3.20.1/"""
             jsAddress += """build/ol.js"></script>"""
-        layerSearch = settings["Appearance"]["Layer search"]
+        layerSearch = unicode(settings["Appearance"]["Layer search"])
         if layerSearch != "None" and layerSearch != "":
+            searchLayer = settings["Appearance"]["Search layer"]
             cssAddress += """
         <link rel="stylesheet" href="resources/horsey.min.css">
         <link rel="stylesheet" href="resources/ol3-search-layer.min.css">"""
@@ -77,7 +84,7 @@ def writeOL(iface, layers, groups, popup, visible,
         <script src="resources/horsey.min.js"></script>
         <script src="resources/ol3-search-layer.min.js"></script>"""
             searchVals = layerSearch.split(": ")
-            layerSearch = """
+            layerSearch = u"""
     var searchLayer = new ol.SearchLayer({{
       layer: lyr_{layer},
       colName: '{field}',
@@ -86,8 +93,9 @@ def writeOL(iface, layers, groups, popup, visible,
       map: map
     }});
 
-    map.addControl(searchLayer);""".format(layer=searchVals[0],
+    map.addControl(searchLayer);""".format(layer=searchLayer,
                                            field=searchVals[1])
+            controlCount = controlCount + 1
         else:
             layerSearch = ""
         if osmb != "":
@@ -96,14 +104,16 @@ def writeOL(iface, layers, groups, popup, visible,
         geojsonVars = ""
         wfsVars = ""
         styleVars = ""
-        for layer, encode2json in zip(layers, json):
+        for count, (layer, encode2json) in enumerate(zip(layers, json)):
+            sln = safeName(layer.name()) + unicode(count)
             if layer.type() == layer.VectorLayer:
                 if layer.providerType() != "WFS" or encode2json:
                     geojsonVars += ('<script src="layers/%s"></script>' %
-                                    (safeName(layer.name()) + ".js"))
+                                    (sln + ".js"))
                 else:
                     layerSource = layer.source()
-                    if "retrictToRequestBBOX" in layerSource:
+                    if ("retrictToRequestBBOX" in layerSource or
+                            "restrictToRequestBBOX" in layerSource):
                         provider = layer.dataProvider()
                         uri = QgsDataSourceURI(provider.dataSourceUri())
                         wfsURL = uri.param("url")
@@ -120,10 +130,10 @@ def writeOL(iface, layers, groups, popup, visible,
                                              'SRSNAME=EPSG:3857', layerSource)
                     layerSource += "&outputFormat=text%2Fjavascript&"
                     layerSource += "format_options=callback%3A"
-                    layerSource += "get" + safeName(layer.name()) + "Json"
+                    layerSource += "get" + sln + "Json"
                     wfsVars += ('<script src="%s"></script>' % layerSource)
                 styleVars += ('<script src="styles/%s_style.js"></script>' %
-                              (safeName(layer.name())))
+                              (sln))
         popupLayers = "popupLayers = [%s];" % ",".join(
                 ['1' for field in popup])
         controls = ['expandedAttribution']
@@ -149,13 +159,14 @@ def writeOL(iface, layers, groups, popup, visible,
         </style>
 """.format(bgcol=mapSettings.backgroundColor().name())
         geolocateUser = settings["Appearance"]["Geolocate user"]
-        backgroundColor += geolocateStyle(geolocateUser)
+        (geolocateCode, controlCount) = geolocateStyle(geolocateUser,
+                                                       controlCount)
+        backgroundColor += geolocateCode
         mapbounds = bounds(iface,
-                           settings["Scale/Zoom"]["Extent"] == "Canvas extent",
+                           extent == "Canvas extent",
                            layers,
                            settings["Appearance"]["Match project CRS"])
-        mapextent = "extent: %s," % mapbounds if (
-            settings["Scale/Zoom"]["Restrict to extent"]) else ""
+        mapextent = "extent: %s," % mapbounds if restrictToExtent else ""
         maxZoom = int(settings["Scale/Zoom"]["Max zoom level"])
         minZoom = int(settings["Scale/Zoom"]["Min zoom level"])
         popupsOnHover = settings["Appearance"]["Show popups on hover"]
@@ -183,7 +194,8 @@ def writeOL(iface, layers, groups, popup, visible,
                 measureUnit = measureUnitFeetScript()
             else:
                 measureUnit = measureUnitMetricScript()
-            measureStyle = measureStyleScript()
+            measureStyle = measureStyleScript(controlCount)
+            controlCount = controlCount + 1
         else:
             measureControl = ""
             measuring = ""
@@ -194,10 +206,23 @@ def writeOL(iface, layers, groups, popup, visible,
         geolocate = geolocation(geolocateUser)
         geocode = settings["Appearance"]["Add address search"]
         geocodingLinks = geocodeLinks(geocode)
+        geocodingJS = geocodeJS(geocode)
         geocodingScript = geocodeScript(geocode)
         extracss = """
         <link rel="stylesheet" href="./resources/ol3-layerswitcher.css">
         <link rel="stylesheet" href="./resources/qgis2web.css">"""
+        if geocode:
+            geocodePos = 65 + (controlCount * 35)
+            extracss += """
+        <style>
+        .ol-geocoder.gcd-gl-container {
+            top: %dpx!important;
+        }
+        .ol-geocoder .gcd-gl-btn {
+            width: 21px!important;
+            height: 21px!important;
+        }
+        </style>""" % geocodePos
         if settings["Appearance"]["Geolocate user"]:
             extracss += """
         <link rel="stylesheet" href="http://maxcdn.bootstrapcdn.com/"""
@@ -216,6 +241,8 @@ def writeOL(iface, layers, groups, popup, visible,
         ol3layers = """
         <script src="./layers/layers.js" type="text/javascript"></script>"""
         mapSize = iface.mapCanvas().size()
+        exp_js = """
+        <script src="resources/qgis2web_expressions.js"></script>"""
         values = {"@PAGETITLE@": pageTitle,
                   "@CSSADDRESS@": cssAddress,
                   "@EXTRACSS@": extracss,
@@ -230,10 +257,12 @@ def writeOL(iface, layers, groups, popup, visible,
                   "@OL3_PROJ4@": proj4,
                   "@OL3_PROJDEF@": proj,
                   "@OL3_GEOCODINGLINKS@": geocodingLinks,
+                  "@OL3_GEOCODINGJS@": geocodingJS,
                   "@QGIS2WEBJS@": ol3qgis2webjs,
                   "@OL3_LAYERSWITCHER@": ol3layerswitcher,
                   "@OL3_LAYERS@": ol3layers,
                   "@OL3_MEASURESTYLE@": measureStyle,
+                  "@EXP_JS@": exp_js,
                   "@LEAFLET_ADDRESSCSS@": "",
                   "@LEAFLET_MEASURECSS@": "",
                   "@LEAFLET_EXTRAJS@": "",
@@ -267,9 +296,9 @@ def writeOL(iface, layers, groups, popup, visible,
                   "@MEASURE@": measure,
                   "@MEASUREUNIT@": measureUnit}
         with open(os.path.join(folder, "resources", "qgis2web.js"), "w") as f:
-            f.write(replaceInScript("qgis2web.js", values))
+            out = replaceInScript("qgis2web.js", values)
+            f.write(out.encode("utf-8"))
     except Exception as e:
-        print "FAIL"
         print traceback.format_exc()
     finally:
         QApplication.restoreOverrideCursor()
@@ -277,30 +306,39 @@ def writeOL(iface, layers, groups, popup, visible,
 
 
 def writeLayersAndGroups(layers, groups, visible, folder, popup,
-                         settings, json, matchCRS, clustered, iface):
+                         settings, json, matchCRS, clustered, iface,
+                         restrictToExtent, extent):
 
     canvas = iface.mapCanvas()
     basemapList = settings["Appearance"]["Base layer"]
     basemaps = [basemapOL()[item.text()] for _, item in enumerate(basemapList)]
-
+    if len(basemapList) > 1:
+        baseGroup = "Base maps"
+    else:
+        baseGroup = ""
     baseLayer = """var baseLayer = new ol.layer.Group({
-    'title': 'Base maps',
+    'title': '%s',
     layers: [%s\n]
-});""" % ','.join(basemaps)
+});""" % (baseGroup, ','.join(basemaps))
 
     layerVars = ""
-    for layer, encode2json, cluster in zip(layers, json, clustered):
+    for count, (layer, encode2json, cluster) in enumerate(zip(layers, json,
+                                                              clustered)):
         try:
-            if is25d(layer, canvas):
+            if is25d(layer, canvas, restrictToExtent, extent):
                 pass
             else:
                 layerVars += "\n".join([layerToJavascript(iface, layer,
                                                           encode2json,
-                                                          matchCRS, cluster)])
+                                                          matchCRS, cluster,
+                                                          restrictToExtent,
+                                                          extent, count)])
         except:
             layerVars += "\n".join([layerToJavascript(iface, layer,
                                                       encode2json, matchCRS,
-                                                      cluster)])
+                                                      cluster,
+                                                      restrictToExtent,
+                                                      extent, count)])
     groupVars = ""
     groupedLayers = {}
     for group, groupLayers in groups.iteritems():
@@ -316,10 +354,10 @@ def writeLayersAndGroups(layers, groups, visible, folder, popup,
     mapLayers = ["baseLayer"]
     usedGroups = []
     osmb = ""
-    for layer in layers:
+    for count, layer in enumerate(layers):
         try:
             renderer = layer.rendererV2()
-            if is25d(layer, canvas):
+            if is25d(layer, canvas, restrictToExtent, extent):
                 shadows = ""
                 renderer = layer.rendererV2()
                 renderContext = QgsRenderContext.fromMapSettings(
@@ -352,9 +390,10 @@ def writeLayersAndGroups(layers, groups, visible, folder, popup,
 var osmb = new OSMBuildings(map).date(new Date({shadows}));
 osmb.set(geojson_{sln});""".format(shadows=shadows, sln=safeName(layer.name()))
             else:
-                mapLayers.append("lyr_" + safeName(layer.name()))
+                mapLayers.append("lyr_" + safeName(layer.name()) +
+                                 unicode(count))
         except:
-            mapLayers.append("lyr_" + safeName(layer.name()))
+            mapLayers.append("lyr_" + safeName(layer.name()) + unicode(count))
     visibility = ""
     for layer, v in zip(mapLayers[1:], visible):
         visibility += "\n".join(["%s.setVisible(%s);" % (layer,
@@ -362,9 +401,9 @@ osmb.set(geojson_{sln});""".format(shadows=shadows, sln=safeName(layer.name()))
 
     group_list = ["baseLayer"] if len(basemapList) else []
     no_group_list = []
-    for layer in layers:
+    for count, layer in enumerate(layers):
         try:
-            if is25d(layer, canvas):
+            if is25d(layer, canvas, restrictToExtent, extent):
                 pass
             else:
                 if layer.id() in groupedLayers:
@@ -373,7 +412,8 @@ osmb.set(geojson_{sln});""".format(shadows=shadows, sln=safeName(layer.name()))
                         group_list.append("group_" + safeName(groupName))
                         usedGroups.append(groupName)
                 else:
-                    no_group_list.append("lyr_" + safeName(layer.name()))
+                    no_group_list.append("lyr_" + safeName(layer.name()) +
+                                         unicode(count))
         except:
             if layer.id() in groupedLayers:
                 groupName = groupedLayers[layer.id()]
@@ -381,7 +421,8 @@ osmb.set(geojson_{sln});""".format(shadows=shadows, sln=safeName(layer.name()))
                     group_list.append("group_" + safeName(groupName))
                     usedGroups.append(groupName)
             else:
-                no_group_list.append("lyr_" + safeName(layer.name()))
+                no_group_list.append("lyr_" + safeName(layer.name()) +
+                                     unicode(count))
 
     layersList = []
     for layer in (group_list + no_group_list):
@@ -391,8 +432,12 @@ osmb.set(geojson_{sln});""".format(shadows=shadows, sln=safeName(layer.name()))
     fieldAliases = ""
     fieldImages = ""
     fieldLabels = ""
-    for layer, labels in zip(layers, popup):
-        if layer.type() == layer.VectorLayer:
+    blend_mode = ""
+    for count, (layer, labels) in enumerate(zip(layers, popup)):
+        sln = safeName(layer.name()) + unicode(count)
+        if layer.type() == layer.VectorLayer and not is25d(layer, canvas,
+                                                           restrictToExtent,
+                                                           extent):
             fieldList = layer.pendingFields()
             aliasFields = ""
             imageFields = ""
@@ -403,7 +448,7 @@ osmb.set(geojson_{sln});""".format(shadows=shadows, sln=safeName(layer.name()))
             labelFields = "{%(labelFields)s});\n" % (
                     {"labelFields": labelFields})
             labelFields = "lyr_%(name)s.set('fieldLabels', " % (
-                        {"name": safeName(layer.name())}) + labelFields
+                        {"name": sln}) + labelFields
             fieldLabels += labelFields
             for f in fieldList:
                 fieldIndex = fieldList.indexFromName(unicode(f.name()))
@@ -420,13 +465,18 @@ osmb.set(geojson_{sln});""".format(shadows=shadows, sln=safeName(layer.name()))
             aliasFields = "{%(aliasFields)s});\n" % (
                         {"aliasFields": aliasFields})
             aliasFields = "lyr_%(name)s.set('fieldAliases', " % (
-                        {"name": safeName(layer.name())}) + aliasFields
+                        {"name": sln}) + aliasFields
             fieldAliases += aliasFields
             imageFields = "{%(imageFields)s});\n" % (
                         {"imageFields": imageFields})
             imageFields = "lyr_%(name)s.set('fieldImages', " % (
-                        {"name": safeName(layer.name())}) + imageFields
+                        {"name": sln}) + imageFields
             fieldImages += imageFields
+            blend_mode = """lyr_%(name)s.on('precompose', function(evt) {
+    evt.context.globalCompositeOperation = '%(blend)s';
+});""" % (
+                        {"name": sln,
+                         "blend": BLEND_MODES[layer.blendMode()]})
 
     path = os.path.join(folder, "layers", "layers.js")
     with codecs.open(path, "w", "utf-8") as f:
@@ -439,6 +489,7 @@ osmb.set(geojson_{sln});""".format(shadows=shadows, sln=safeName(layer.name()))
         f.write(fieldAliases)
         f.write(fieldImages)
         f.write(fieldLabels)
+        f.write(blend_mode)
     return osmb
 
 
@@ -492,21 +543,32 @@ def bounds(iface, useCanvas, layers, matchCRS):
                                  extent.xMaximum(), extent.yMaximum())
 
 
-def layerToJavascript(iface, layer, encode2json, matchCRS, cluster):
+def layerToJavascript(iface, layer, encode2json, matchCRS, cluster,
+                      restrictToExtent, extent, count):
     if layer.hasScaleBasedVisibility():
-        minRes = 1 / ((1 / layer.minimumScale()) * 39.37 * 90.7)
-        maxRes = 1 / ((1 / layer.maximumScale()) * 39.37 * 90.7)
-        minResolution = "\nminResolution:%s,\n" % unicode(minRes)
-        maxResolution = "maxResolution:%s,\n" % unicode(maxRes)
+        if layer.minimumScale() != 0:
+            minRes = 1 / ((1 / layer.minimumScale()) * 39.37 * 90.7)
+            minResolution = "\nminResolution:%s,\n" % unicode(minRes)
+        else:
+            minResolution = ""
+        if layer.maximumScale() != 0:
+            maxRes = 1 / ((1 / layer.maximumScale()) * 39.37 * 90.7)
+            maxResolution = "maxResolution:%s,\n" % unicode(maxRes)
+        else:
+            maxResolution = ""
     else:
         minResolution = ""
         maxResolution = ""
-    layerName = safeName(layer.name())
+    layerName = safeName(layer.name()) + unicode(count)
+    attrText = layer.attribution()
+    attrUrl = layer.attributionUrl()
+    layerAttr = '<a href="%s">%s</a>' % (attrUrl, attrText)
     if layer.type() == layer.VectorLayer and not is25d(layer,
-                                                       iface.mapCanvas()):
+                                                       iface.mapCanvas(),
+                                                       restrictToExtent,
+                                                       extent):
         renderer = layer.rendererV2()
-        if cluster and (isinstance(renderer, QgsSingleSymbolRendererV2) or
-                        isinstance(renderer, QgsRuleBasedRendererV2)):
+        if (cluster and isinstance(renderer, QgsSingleSymbolRendererV2)):
             cluster = True
         else:
             cluster = False
@@ -537,8 +599,9 @@ def layerToJavascript(iface, layer, encode2json, matchCRS, cluster):
         if layer.providerType() == "WFS" and not encode2json:
             layerCode = '''var format_%(n)s = new ol.format.GeoJSON();
 var jsonSource_%(n)s = new ol.source.Vector({
+    attributions: [new ol.Attribution({html: '%(layerAttr)s'})],
     format: format_%(n)s
-});''' % {"n": layerName}
+});''' % {"n": layerName, "layerAttr": layerAttr}
             if cluster:
                 layerCode += '''cluster_%(n)s = new ol.source.Cluster({
   distance: 10,
@@ -565,9 +628,12 @@ function get%(n)sJson(geojson) {
         else:
             layerCode = '''var format_%(n)s = new ol.format.GeoJSON();
 var features_%(n)s = format_%(n)s.readFeatures(geojson_%(n)s, %(crs)s);
-var jsonSource_%(n)s = new ol.source.Vector();
+var jsonSource_%(n)s = new ol.source.Vector({
+    attributions: [new ol.Attribution({html: '%(layerAttr)s'})],
+});
 jsonSource_%(n)s.addFeatures(features_%(n)s);''' % {"n": layerName,
-                                                    "crs": crsConvert}
+                                                    "crs": crsConvert,
+                                                    "layerAttr": layerAttr}
             if cluster:
                 layerCode += '''cluster_%(n)s = new ol.source.Cluster({
   distance: 10,
@@ -606,20 +672,53 @@ jsonSource_%(n)s.addFeatures(features_%(n)s);''' % {"n": layerName,
     elif layer.type() == layer.RasterLayer:
         if layer.providerType().lower() == "wms":
             source = layer.source()
-            layers = re.search(r"layers=(.*?)(?:&|$)", source).groups(0)[0]
-            url = re.search(r"url=(.*?)(?:&|$)", source).groups(0)[0]
-            return '''var lyr_%(n)s = new ol.layer.Tile({
-                        source: new ol.source.TileWMS(({
-                          url: "%(url)s",
-                          params: {"LAYERS": "%(layers)s", "TILED": "true"},
-                        })),
-                        title: "%(name)s",
-                        %(minRes)s
-                        %(maxRes)s
-                      });''' % {"layers": layers, "url": url,
-                                "n": layerName, "name": layer.name(),
-                                "minRes": minResolution,
-                                "maxRes": maxResolution}
+            opacity = layer.renderer().opacity()
+            d = parse_qs(source)
+            if "type" in d and d["type"][0] == "xyz":
+                return """
+        var lyr_%s = new ol.layer.Tile({
+            'title': '%s',
+            'type': 'base',
+            'opacity': %f,
+            %s
+            %s
+            source: new ol.source.XYZ({
+    attributions: [new ol.Attribution({html: '%s'})],
+                url: '%s'
+            })
+        });""" % (layerName, layerName, opacity, minResolution, maxResolution,
+                  layerAttr, d["url"][0])
+            else:
+                layers = re.search(r"layers=(.*?)(?:&|$)", source).groups(0)[0]
+                url = re.search(r"url=(.*?)(?:&|$)", source).groups(0)[0]
+                metadata = layer.metadata()
+                needle = "<tr><td>%s</td><td>(.+?)</td>" % (
+                    QCoreApplication.translate("QgsWmsProvider",
+                                               "WMS Version"))
+                result = re.search(needle, metadata)
+                if result:
+                    version = result.group(1)
+                else:
+                    version = ""
+                return '''var lyr_%(n)s = new ol.layer.Tile({
+                            source: new ol.source.TileWMS(({
+                              url: "%(url)s",
+    attributions: [new ol.Attribution({html: '%(layerAttr)s'})],
+                              params: {
+                                "LAYERS": "%(layers)s",
+                                "TILED": "true",
+                                "VERSION": "%(version)s"},
+                            })),
+                            title: "%(name)s",
+                            opacity: %(opacity)f,
+                            %(minRes)s
+                            %(maxRes)s
+                          });''' % {"layers": layers, "url": url,
+                                    "layerAttr": layerAttr,
+                                    "n": layerName, "name": layer.name(),
+                                    "version": version, "opacity": opacity,
+                                    "minRes": minResolution,
+                                    "maxRes": maxResolution}
         elif layer.providerType().lower() == "gdal":
             provider = layer.dataProvider()
 
@@ -641,6 +740,7 @@ jsonSource_%(n)s.addFeatures(features_%(n)s);''' % {"n": layerName,
                             %(maxRes)s
                             source: new ol.source.ImageStatic({
                                url: "./layers/%(n)s.png",
+    attributions: [new ol.Attribution({html: '%(layerAttr)s'})],
                                 projection: 'EPSG:3857',
                                 alwaysInRange: true,
                                 //imageSize: [%(col)d, %(row)d],
@@ -652,13 +752,15 @@ jsonSource_%(n)s.addFeatures(features_%(n)s);''' % {"n": layerName,
                                   "name": layer.name(),
                                   "minRes": minResolution,
                                   "maxRes": maxResolution,
+                                  "layerAttr": layerAttr,
                                   "row": provider.ySize()}
 
 
 def exportStyles(layers, folder, clustered):
     stylesFolder = os.path.join(folder, "styles")
     QDir().mkpath(stylesFolder)
-    for layer, cluster in zip(layers, clustered):
+    for count, (layer, cluster) in enumerate(zip(layers, clustered)):
+        sln = safeName(layer.name()) + unicode(count)
         if layer.type() != layer.VectorLayer:
             continue
         labelsEnabled = unicode(
@@ -666,17 +768,29 @@ def exportStyles(layers, folder, clustered):
         if (labelsEnabled):
             labelField = layer.customProperty("labeling/fieldName")
             if labelField != "":
-                fieldIndex = layer.pendingFields().indexFromName(labelField)
-                try:
-                    editFormConfig = layer.editFormConfig()
-                    editorWidget = editFormConfig.widgetType(fieldIndex)
-                except:
-                    editorWidget = layer.editorWidgetV2(fieldIndex)
-                if (editorWidget == QgsVectorLayer.Hidden or
-                        editorWidget == 'Hidden'):
-                    labelField = "q2wHide_" + labelField
-                labelText = ('feature.get("%s")' %
-                             labelField.replace('"', '\\"'))
+                if unicode(layer.customProperty(
+                        "labeling/isExpression")).lower() == "true":
+                    exprFilename = os.path.join(folder, "resources",
+                                                "qgis2web_expressions.js")
+                    fieldName = layer.customProperty("labeling/fieldName")
+                    name = compile_to_file(fieldName, "label_%s" % sln,
+                                           "OpenLayers3", exprFilename)
+                    js = "%s(context)" % (name)
+                    js = js.strip()
+                    labelText = js
+                else:
+                    fieldIndex = layer.pendingFields().indexFromName(
+                        labelField)
+                    try:
+                        editFormConfig = layer.editFormConfig()
+                        editorWidget = editFormConfig.widgetType(fieldIndex)
+                    except:
+                        editorWidget = layer.editorWidgetV2(fieldIndex)
+                    if (editorWidget == QgsVectorLayer.Hidden or
+                            editorWidget == 'Hidden'):
+                        labelField = "q2wHide_" + labelField
+                    labelText = ('feature.get("%s")' %
+                                 labelField.replace('"', '\\"'))
             else:
                 labelText = '""'
         else:
@@ -685,12 +799,8 @@ def exportStyles(layers, folder, clustered):
         try:
             renderer = layer.rendererV2()
             layer_alpha = layer.layerTransparency()
-            if (isinstance(renderer, QgsSingleSymbolRendererV2) or
-                    isinstance(renderer, QgsRuleBasedRendererV2)):
-                if isinstance(renderer, QgsRuleBasedRendererV2):
-                    symbol = renderer.rootRule().children()[0].symbol()
-                else:
-                    symbol = renderer.symbol()
+            if isinstance(renderer, QgsSingleSymbolRendererV2):
+                symbol = renderer.symbol()
                 if cluster:
                     style = "var size = feature.get('features').length;\n"
                 else:
@@ -701,16 +811,19 @@ def exportStyles(layers, folder, clustered):
                 value = 'var value = ""'
             elif isinstance(renderer, QgsCategorizedSymbolRendererV2):
                 defs += """function categories_%s(feature, value) {
-                switch(value) {""" % safeName(layer.name())
+                switch(value) {""" % sln
                 cats = []
                 for cat in renderer.categories():
-                    cats.append('''case "%s":
+                    if cat.value() != "":
+                        categoryStr = "case '%s':" % cat.value()
+                    else:
+                        categoryStr = "default:"
+                    categoryStr += '''
                     return %s;
-                    break;''' %
-                                (cat.value(), getSymbolAsStyle(
-                                    cat.symbol(),
-                                    stylesFolder,
-                                    layer_alpha)))
+                    break;''' % (getSymbolAsStyle(cat.symbol(),
+                                                  stylesFolder,
+                                                  layer_alpha))
+                    cats.append(categoryStr)
                 defs += "\n".join(cats) + "}};"
                 classAttr = renderer.classAttribute()
                 fieldIndex = layer.pendingFields().indexFromName(classAttr)
@@ -724,9 +837,9 @@ def exportStyles(layers, folder, clustered):
                     classAttr = "q2wHide_" + classAttr
                 value = ('var value = feature.get("%s");' % classAttr)
                 style = ('''var style = categories_%s(feature, value)''' %
-                         (safeName(layer.name())))
+                         (sln))
             elif isinstance(renderer, QgsGraduatedSymbolRendererV2):
-                varName = "ranges_" + safeName(layer.name())
+                varName = "ranges_" + sln
                 defs += "var %s = [" % varName
                 ranges = []
                 for ran in renderer.ranges():
@@ -754,6 +867,47 @@ def exportStyles(layers, folder, clustered):
             style =  range[2];
         }
     }''' % {"v": varName}
+            elif isinstance(renderer, QgsRuleBasedRendererV2):
+                template = """
+        function rules_%s(feature, value) {
+            var context = {
+                feature: feature,
+                variables: {}
+            };
+            // Start of if blocks and style check logic
+            %s
+            else {
+                return %s;
+            }
+        }
+        var style = rules_%s(feature, value);
+        """
+                elsejs = "[]"
+                js = ""
+                root_rule = renderer.rootRule()
+                rules = root_rule.children()
+                expFile = os.path.join(folder, "resources",
+                                       "qgis2web_expressions.js")
+                ifelse = "if"
+                for count, rule in enumerate(rules):
+                    symbol = rule.symbol()
+                    styleCode = getSymbolAsStyle(symbol, stylesFolder,
+                                                 layer_alpha)
+                    name = "".join((sln, "rule", unicode(count)))
+                    exp = rule.filterExpression()
+                    if rule.isElse():
+                        elsejs = styleCode
+                        continue
+                    name = compile_to_file(exp, name, "OpenLayers3", expFile)
+                    js += """
+                    %s (%s(context)) {
+                      return %s;
+                    }
+                    """ % (ifelse, name, styleCode)
+                    js = js.strip()
+                    ifelse = "else if"
+                value = ("var value = '';")
+                style = template % (sln, js, elsejs, sln)
             else:
                 style = ""
             if layer.customProperty("labeling/fontSize"):
@@ -792,6 +946,10 @@ def exportStyles(layers, folder, clustered):
                 stroke = ""
             if style != "":
                 style = '''function(feature, resolution){
+    var context = {
+        feature: feature,
+        variables: {}
+    };
     %(value)s
     %(style)s;
     if (%(label)s !== null%(labelRes)s) {
@@ -810,7 +968,7 @@ def exportStyles(layers, folder, clustered):
               offsetX: 5,
               offsetY: 3,
               fill: new ol.style.Fill({
-                color: "%(color)s"
+                color: '%(color)s'
               }),%(stroke)s
             });
         %(cache)s[key] = new ol.style.Style({"text": text})
@@ -820,7 +978,7 @@ def exportStyles(layers, folder, clustered):
     return allStyles;
 }''' % {
                     "style": style, "labelRes": labelRes, "label": labelText,
-                    "cache": "styleCache_" + safeName(layer.name()),
+                    "cache": "styleCache_" + sln,
                     "size": size, "face": face, "color": color,
                     "stroke": stroke, "value": value}
             else:
@@ -830,19 +988,13 @@ def exportStyles(layers, folder, clustered):
             /* """ + traceback.format_exc() + " */}"
             print traceback.format_exc()
 
-        path = os.path.join(stylesFolder, safeName(layer.name()) + "_style.js")
+        path = os.path.join(stylesFolder, sln + "_style.js")
 
         with codecs.open(path, "w", "utf-8") as f:
             f.write('''%(defs)s
 var styleCache_%(name)s={}
 var style_%(name)s = %(style)s;''' %
-                    {"defs": defs, "name": safeName(layer.name()),
-                     "style": style})
-
-
-def getRGBAColor(color, alpha):
-    r, g, b, _ = color.split(",")
-    return '"rgba(%s)"' % ",".join([r, g, b, unicode(alpha)])
+                    {"defs": defs, "name": sln, "style": style})
 
 
 def getSymbolAsStyle(symbol, stylesFolder, layer_transparency):
@@ -1083,27 +1235,38 @@ ol.inherits(geolocateControl, ol.control.Control);"""
         return ""
 
 
-def geolocateStyle(geolocate):
+def geolocateStyle(geolocate, controlCount):
     if geolocate:
-        return """
+        ctrlPos = 65 + (controlCount * 35)
+        print ctrlPos
+        controlCount = controlCount + 1
+        return ("""
         <style>
         .geolocate {
-            top: 65px;
+            top: %dpx;
             left: .5em;
         }
         .ol-touch .geolocate {
             top: 80px;
         }
-        </style>"""
+        </style>""" % ctrlPos, controlCount)
     else:
-        return ""
+        return ("", controlCount)
 
 
 def geocodeLinks(geocode):
     if geocode:
         returnVal = """
     <link href="http://cdn.jsdelivr.net/openlayers.geocoder/latest/"""
-        returnVal += """ol3-geocoder.min.css" rel="stylesheet">
+        returnVal += """ol3-geocoder.min.css" rel="stylesheet">"""
+        return returnVal
+    else:
+        return ""
+
+
+def geocodeJS(geocode):
+    if geocode:
+        returnVal = """
     <script src="http://cdn.jsdelivr.net/openlayers.geocoder/latest/"""
         returnVal += """ol3-geocoder.js"></script>"""
         return returnVal

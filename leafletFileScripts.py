@@ -26,6 +26,8 @@ def writeFoldersAndFiles(pluginDir, outputProjectFileName, cluster_set,
     cssDir = pluginDir + os.sep + 'css' + os.sep
     markerStore = os.path.join(outputProjectFileName, 'markers')
     os.makedirs(markerStore)
+    shutil.copyfile(jsDir + 'qgis2web_expressions.js',
+                    jsStore + 'qgis2web_expressions.js')
     if mapLibLocation == "Local":
         shutil.copyfile(jsDir + 'leaflet.js', jsStore + 'leaflet.js')
         shutil.copyfile(cssDir + 'leaflet.css', cssStore + 'leaflet.css')
@@ -90,9 +92,9 @@ def writeHTMLstart(outputIndex, webpage_name, cluster_set, address, measure,
         jsAddress = '<script src="js/leaflet.js"></script>'
     else:
         cssAddress = '<link rel="stylesheet" href='
-        cssAddress += '"http://unpkg.com/leaflet@1.0.0/dist/leaflet.css" />'
+        cssAddress += '"http://unpkg.com/leaflet@1.0.2/dist/leaflet.css" />'
         jsAddress = '<script src="http://'
-        jsAddress += 'unpkg.com/leaflet@1.0.0/dist/leaflet.js"></script>'
+        jsAddress += 'unpkg.com/leaflet@1.0.2/dist/leaflet.js"></script>'
     if locate:
         cssAddress += '<link rel="stylesheet" '
         cssAddress += 'href="http://maxcdn.bootstrapcdn.com/font-awesome/'
@@ -154,6 +156,8 @@ def writeHTMLstart(outputIndex, webpage_name, cluster_set, address, measure,
         <script src="js/proj4leaflet.js"></script>"""
     else:
         crsJS = ""
+    exp_js = """
+        <script src="js/qgis2web_expressions.js"></script>"""
 
     canvasSize = canvas.size()
     values = {"@PAGETITLE@": webpage_name,
@@ -173,6 +177,7 @@ def writeHTMLstart(outputIndex, webpage_name, cluster_set, address, measure,
               "@QGIS2WEBJS@": qgis2webJS,
               "@MAP_WIDTH@": unicode(canvasSize.width()) + "px",
               "@MAP_HEIGHT@": unicode(canvasSize.height()) + "px",
+              "@EXP_JS@": exp_js,
               "@OL3_BACKGROUNDCOLOR@": "",
               "@OL3_STYLEVARS@": "",
               "@OL3_POPUP@": "",
@@ -181,6 +186,7 @@ def writeHTMLstart(outputIndex, webpage_name, cluster_set, address, measure,
               "@OL3_PROJ4@": "",
               "@OL3_PROJDEF@": "",
               "@OL3_GEOCODINGLINKS@": "",
+              "@OL3_GEOCODINGJS@": "",
               "@OL3_LAYERSWITCHER@": "",
               "@OL3_LAYERS@": "",
               "@OL3_MEASURESTYLE@": ""}

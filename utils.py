@@ -20,10 +20,13 @@ import time
 import re
 import shutil
 from PyQt4.QtCore import QDir, QVariant
+from PyQt4.QtGui import QPainter
 from qgis.core import *
 from qgis.utils import QGis
 import processing
 import tempfile
+import json
+import traceback
 
 NO_POPUP = 0
 ALL_ATTRIBUTES = 1
@@ -40,6 +43,22 @@ TYPE_MAP = {
     QGis.WKBMultiLineString25D: 'MultiLineString',
     QGis.WKBMultiPolygon: 'MultiPolygon',
     QGis.WKBMultiPolygon25D: 'MultiPolygon'}
+
+BLEND_MODES = {
+    QPainter.CompositionMode_SourceOver: 'normal',
+    QPainter.CompositionMode_Multiply: 'multiply',
+    QPainter.CompositionMode_Screen: 'screen',
+    QPainter.CompositionMode_Overlay: 'overlay',
+    QPainter.CompositionMode_Darken: 'darken',
+    QPainter.CompositionMode_Lighten: 'lighten',
+    QPainter.CompositionMode_ColorDodge: 'color-dodge',
+    QPainter.CompositionMode_ColorBurn: 'color-burn',
+    QPainter.CompositionMode_HardLight: 'hard-light',
+    QPainter.CompositionMode_SoftLight: 'soft-light',
+    QPainter.CompositionMode_Difference: 'difference',
+    QPainter.CompositionMode_Exclusion: 'exclusion'}
+
+PLACEMENT = ['bottomleft', 'topleft', 'topright', 'bottomleft', 'bottomright']
 
 
 def tempFolder():
@@ -63,7 +82,7 @@ def getUsedFields(layer):
     return fields
 
 
-def writeTmpLayer(layer, popup):
+def writeTmpLayer(layer, popup, restrictToExtent, iface, extent):
     fields = layer.pendingFields()
     usedFields = []
     for count, field in enumerate(fields):
@@ -108,7 +127,13 @@ def writeTmpLayer(layer, popup):
     newlayer = QgsVectorLayer(uri, layer.name(), 'memory')
     writer = newlayer.dataProvider()
     outFeat = QgsFeature()
-    for feature in layer.getFeatures():
+    if restrictToExtent and extent == "Canvas extent":
+        request = QgsFeatureRequest(iface.mapCanvas().extent())
+        request.setFlags(QgsFeatureRequest.ExactIntersect)
+        features = layer.getFeatures(request)
+    else:
+        features = layer.getFeatures()
+    for feature in features:
         if feature.geometry() is not None:
             outFeat.setGeometry(feature.geometry())
         attrs = [feature[f] for f in usedFields]
@@ -118,19 +143,22 @@ def writeTmpLayer(layer, popup):
     return newlayer
 
 
-def exportLayers(iface, layers, folder, precision, optimize, popupField, json):
+def exportLayers(iface, layers, folder, precision, optimize,
+                 popupField, json, restrictToExtent, extent):
     canvas = iface.mapCanvas()
     epsg4326 = QgsCoordinateReferenceSystem("EPSG:4326")
     layersFolder = os.path.join(folder, "layers")
     QDir().mkpath(layersFolder)
-    for layer, encode2json, popup in zip(layers, json, popupField):
+    for count, (layer, encode2json, popup) in enumerate(zip(layers, json,
+                                                            popupField)):
         if (layer.type() == layer.VectorLayer and
                 (layer.providerType() != "WFS" or encode2json)):
-            cleanLayer = writeTmpLayer(layer, popup)
+            cleanLayer = writeTmpLayer(layer, popup, restrictToExtent,
+                                       iface, extent)
             fields = layer.pendingFields()
             for field in fields:
                 exportImages(layer, field.name(), layersFolder + "/tmp.tmp")
-            if is25d(layer, canvas):
+            if is25d(layer, canvas, restrictToExtent, extent):
                 provider = cleanLayer.dataProvider()
                 provider.addAttributes([QgsField("height", QVariant.Double),
                                         QgsField("wallColor", QVariant.String),
@@ -183,10 +211,9 @@ def exportLayers(iface, layers, folder, precision, optimize, popupField, json):
                 cleanLayer.commitChanges()
                 renderer.stopRender(renderContext)
 
-            tmpPath = os.path.join(layersFolder,
-                                   safeName(cleanLayer.name()) + ".json")
-            path = os.path.join(layersFolder,
-                                safeName(cleanLayer.name()) + ".js")
+            sln = safeName(cleanLayer.name()) + unicode(count)
+            tmpPath = os.path.join(layersFolder, sln + ".json")
+            path = os.path.join(layersFolder, sln + ".js")
             if precision != "maintain":
                 options = "COORDINATE_PRECISION=" + unicode(precision)
             else:
@@ -196,8 +223,7 @@ def exportLayers(iface, layers, folder, precision, optimize, popupField, json):
                                                     'GeoJson', 0,
                                                     layerOptions=[options])
             with open(path, "w") as f:
-                f.write("var %s = " % ("geojson_" +
-                                       safeName(cleanLayer.name())))
+                f.write("var %s = " % ("geojson_" + sln))
                 with open(tmpPath, "r") as f2:
                     for line in f2:
                         if optimize:
@@ -209,7 +235,8 @@ def exportLayers(iface, layers, folder, precision, optimize, popupField, json):
         elif (layer.type() == layer.RasterLayer and
                 layer.providerType() != "wms"):
 
-            name_ts = safeName(layer.name()) + unicode(int(time.time()))
+            name_ts = (safeName(layer.name()) + unicode(count) +
+                       unicode(int(time.time())))
 
             # We need to create a new file to export style
             piped_file = os.path.join(
@@ -251,7 +278,9 @@ def exportLayers(iface, layers, folder, precision, optimize, popupField, json):
             piped_3857 = os.path.join(tempfile.gettempdir(),
                                       name_ts + '_piped_3857.tif')
             # Export layer as PNG
-            out_raster = os.path.join(layersFolder, layer.name() + ".png")
+            out_raster = os.path.join(layersFolder,
+                                      safeName(layer.name()) +
+                                      unicode(count) + ".png")
 
             qgis_version = QGis.QGIS_VERSION
 
@@ -355,9 +384,13 @@ def exportLayers(iface, layers, folder, precision, optimize, popupField, json):
                     shutil.copyfile(piped_3857, out_raster)
 
 
-def is25d(layer, canvas):
+def is25d(layer, canvas, restrictToExtent, extent):
+    if layer.geometryType() != QGis.Polygon:
+        return False
     try:
         renderer = layer.rendererV2()
+        if isinstance(renderer, Qgs25DRenderer):
+            return True
         symbols = []
         if isinstance(renderer, QgsCategorizedSymbolRendererV2):
             categories = renderer.categories()
@@ -371,13 +404,17 @@ def is25d(layer, canvas):
             renderContext = QgsRenderContext.fromMapSettings(
                     canvas.mapSettings())
             fields = layer.pendingFields()
-            features = layer.getFeatures()
+            if restrictToExtent and extent == "Canvas extent":
+                request = QgsFeatureRequest(iface.mapCanvas().extent())
+                request.setFlags(QgsFeatureRequest.ExactIntersect)
+                features = layer.getFeatures(request)
+            else:
+                features = layer.getFeatures()
             renderer.startRender(renderContext, fields)
             for feature in features:
                 symbol = renderer.symbolForFeature2(feature, renderContext)
                 symbols.append(symbol)
             renderer.stopRender(renderContext)
-
         for sym in symbols:
             sl1 = sym.symbolLayer(1)
             sl2 = sym.symbolLayer(2)
@@ -386,7 +423,7 @@ def is25d(layer, canvas):
                 return True
         return False
     except:
-        # print traceback.format_exc()
+        print traceback.format_exc()
         return False
 
 
@@ -490,3 +527,23 @@ def exportImages(layer, field, layerFileName):
             shutil.copyfile(source_file_name, photo_file_name)
         except IOError as e:
             pass
+
+
+def handleHiddenField(layer, field):
+    fieldIndex = layer.pendingFields().indexFromName(field)
+    try:
+        editFormConfig = layer.editFormConfig()
+        editorWidget = editFormConfig.widgetType(fieldIndex)
+    except:
+        editorWidget = layer.editorWidgetV2(fieldIndex)
+    if (editorWidget == QgsVectorLayer.Hidden or
+            editorWidget == 'Hidden'):
+        fieldName = "q2wHide_" + field
+    else:
+        fieldName = field
+    return fieldName
+
+
+def getRGBAColor(color, alpha):
+    r, g, b, _ = color.split(",")
+    return "'rgba(%s)'" % ",".join([r, g, b, unicode(alpha)])
